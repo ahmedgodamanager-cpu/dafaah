@@ -1,7 +1,7 @@
 import { Client, CategoryInfo, TaskCategory, TaskItem } from '../types';
-import { addBusinessDays, getThursdayOfWeek, formatSequentialReports, formatDateToYYYYMMDD, parseDate } from '../utils/dateUtils';
+import { addBusinessDays, addMonthsKeepingDay, formatSequentialReports, formatDateToYYYYMMDD, getThursdaysOfContractMonth, parseDate, toWorkingDay } from '../utils/dateUtils';
 import { isMatrixTaskNumber, taskKey } from '../utils/taskKeys';
-import { shiftOpenTasks } from '../utils/holdUtils';
+import { addCalendarDays, shiftOpenTasks } from '../utils/holdUtils';
 
 export { generateWeeklyReports, generateClientTasks, getThursdayOfWeek, getArabicOrdinal, formatSequentialReports, processAndSortClientTasks, formatDateToYYYYMMDD, parseDate } from '../utils/dateUtils';
 
@@ -339,6 +339,13 @@ export function createDefaultCoreTasks(
     safeDuration = economyFullPackageMonths + economyMediaMonths;
   }
 
+  // A report covers its own week: from that Sunday, or from the first working day if that is later.
+  const firstWorkingDay = formatDateToYYYYMMDD(toWorkingDay(parseDate(startDate) || new Date()));
+  const reportStart = (due: string) => {
+    const sunday = addCalendarDays(due, -4);
+    return sunday < firstWorkingDay ? firstWorkingDay : sunday;
+  };
+
   for (let month = 0; month < safeDuration; month++) {
     let currentMonthContract = contractType;
     if (contractType === 'الاقتصادية') {
@@ -404,18 +411,10 @@ export function createDefaultCoreTasks(
       filteredTasks = getFilteredTasksForContract(currentMonthContract);
     }
 
-    // Baseline month start date: Day 0 is strictly startDate (Work Start Date) for month 0
-    let monthStartDate: string;
-    if (month === 0) {
-      // Always store YYYY-MM-DD (a CSV import may give DD/MM/YYYY), and use the same
-      // "today" fallback as the later months when the start date is missing.
-      monthStartDate = formatDateToYYYYMMDD(parseDate(startDate) || new Date());
-    } else {
-      const parsedStart = parseDate(startDate) || new Date();
-      const nextMonth = new Date(parsedStart.getFullYear(), parsedStart.getMonth() + month, parsedStart.getDate(), 12, 0, 0);
-      nextMonth.setDate(nextMonth.getDate() + 10);
-      monthStartDate = formatDateToYYYYMMDD(nextMonth);
-    }
+    // Each contract month starts on the contract's day of the month. Friday and Saturday are days
+    // off, so a month that would start on one of them starts on the following Sunday.
+    const monthStartDate = formatDateToYYYYMMDD(toWorkingDay(addMonthsKeepingDay(parseDate(startDate) || new Date(), month)));
+    const monthThursdays = getThursdaysOfContractMonth(startDate, month, safeDuration);
 
     // Week boundaries calculated with addBusinessDays
     const d1 = 5;
@@ -462,9 +461,6 @@ export function createDefaultCoreTasks(
         if (t.taskNumber === 'W1-ACC-01') {
           // البريف: تسليم بعد يوم عمل من تاريخ بداية العمل
           dueDate = addBusinessDays(w1Start, 1);
-        } else if (t.title === 'التقرير الأسبوعي') {
-          const overallWeek = (month * 4) + 1;
-          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         } else {
           // مهام التأسيس للأسبوع الأول
           dueDate = addBusinessDays(w1Start, 4);
@@ -477,9 +473,6 @@ export function createDefaultCoreTasks(
           dueDate = w2PlanApprovalDue;
         } else if (t.title.includes('بلان')) {
           dueDate = addBusinessDays(w2Start, 2);
-        } else if (t.title === 'التقرير الأسبوعي') {
-          const overallWeek = (month * 4) + 2;
-          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
       } else if (t.week === 3) {
         taskStart = w3Start;
@@ -500,9 +493,6 @@ export function createDefaultCoreTasks(
         } else if (t.title.includes('اعتماد العميل فيديوهات') || t.title.includes('اعتماد العميل الفيديوهات')) {
           taskStart = w3VideoDeliveryDue;
           dueDate = w3VideoClientApprovalDue;
-        } else if (t.title === 'التقرير الأسبوعي') {
-          const overallWeek = (month * 4) + 3;
-          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
       } else if (t.week === 4) {
         taskStart = w4Start;
@@ -516,13 +506,14 @@ export function createDefaultCoreTasks(
         } else if (t.title === 'جدولة نشر الفيديوهات') {
           taskStart = w3VideoClientApprovalDue;
           dueDate = addBusinessDays(taskStart, 2);
-        } else if (t.title === 'التقرير الأسبوعي') {
-          const overallWeek = (month * 4) + 4;
-          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
-        } else if (t.title === 'التقرير الشهري الشامل') {
-          const overallWeek = (month * 4) + 4;
-          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
+      }
+
+      // Reports go out on Thursdays: the weekly ones on this month's Thursdays in order, the
+      // monthly one on its last Thursday.
+      if (t.title === 'التقرير الأسبوعي' || t.title === 'التقرير الشهري الشامل') {
+        dueDate = t.title === 'التقرير الأسبوعي' ? monthThursdays[t.week - 1] : monthThursdays[monthThursdays.length - 1];
+        taskStart = reportStart(dueDate);
       }
 
       const isMultipleMonths = safeDuration > 1;
@@ -540,6 +531,22 @@ export function createDefaultCoreTasks(
         monthIndex: month + 1
       });
     });
+
+    // The matrix lists four weekly reports a month, but some contract months have a fifth Thursday.
+    if (filteredTasks.some(t => t.title === 'التقرير الأسبوعي')) {
+      monthThursdays.slice(4).forEach((due, i) => {
+        allTasks.push({
+          id: `t-${clientId}-m${month}-weekly-report-${i + 5}`,
+          taskNumber: `W${i + 5}-ACC-01-M${month + 1}`,
+          title: 'التقرير الأسبوعي',
+          category: 'account_management',
+          startDate: reportStart(due),
+          dueDate: due,
+          completed: false,
+          monthIndex: month + 1
+        });
+      });
+    }
   }
 
   const formattedTasks = formatSequentialReports(allTasks);

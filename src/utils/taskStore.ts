@@ -108,7 +108,8 @@ export function sortTasksByDueDate(tasks: TaskItem[]): TaskItem[] {
   return [...tasks].sort((a, b) => {
     const diff = dueTime(a) - dueTime(b);
     if (diff !== 0) return diff;
-    return (a.taskNumber || a.title || a.id).localeCompare(b.taskNumber || b.title || b.id);
+    // numeric: "W4-SEO-01-6" comes before "W4-SEO-01-10".
+    return (a.taskNumber || a.title || a.id).localeCompare(b.taskNumber || b.title || b.id, undefined, { numeric: true });
   });
 }
 

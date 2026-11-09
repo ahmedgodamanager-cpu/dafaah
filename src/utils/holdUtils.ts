@@ -1,5 +1,5 @@
 import { TaskItem } from '../types';
-import { addBusinessDays, formatDateToYYYYMMDD, getDaysDifference, parseDate } from './dateUtils';
+import { addBusinessDays, formatDateToYYYYMMDD, getDaysDifference, getNextThursday, parseDate } from './dateUtils';
 
 /**
  * Length of a pause ("hold") that started on `holdStart` and ends on `resumeDay` (YYYY-MM-DD).
@@ -29,8 +29,11 @@ export function addCalendarDays(dateStr: string, days: number): string {
   return formatDateToYYYYMMDD(date);
 }
 
+const isThursdayReport = (task: TaskItem) => /^التقرير (الأسبوعي|الشهري الشامل)/.test((task.title || '').trim());
+
 /**
  * Moves the dates of the tasks that are still open `businessDays` working days later.
+ * Reports are delivered on Thursdays, so a moved report lands on the next Thursday.
  * Completed tasks keep their dates.
  */
 export function shiftOpenTasks(tasks: TaskItem[], businessDays: number): TaskItem[] {
@@ -38,7 +41,10 @@ export function shiftOpenTasks(tasks: TaskItem[], businessDays: number): TaskIte
   return tasks.map(task => {
     if (!task || task.completed) return task;
     const next: TaskItem = { ...task };
-    if (task.dueDate && parseDate(task.dueDate)) next.dueDate = addBusinessDays(task.dueDate, businessDays);
+    if (task.dueDate && parseDate(task.dueDate)) {
+      const moved = addBusinessDays(task.dueDate, businessDays);
+      next.dueDate = isThursdayReport(task) ? getNextThursday(moved) : moved;
+    }
     if (task.startDate && parseDate(task.startDate)) next.startDate = addBusinessDays(task.startDate, businessDays);
     return next;
   });
