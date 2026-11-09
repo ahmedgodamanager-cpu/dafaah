@@ -253,9 +253,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
   const processAnalysisApi = async (payload: { fileBase64?: string; mimeType?: string; fileText?: string; fileName?: string }) => {
     try {
+      const idToken = await user?.getIdToken();
       const res = await fetch('/api/ai/analyze-client-file', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
         body: JSON.stringify(payload),
       });
 
