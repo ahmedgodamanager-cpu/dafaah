@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, PlusCircle, Users, Calendar, Phone, Link2, FileText, CheckSquare, Building2, Sparkles, Upload, Loader2, Folder, ExternalLink, Crown } from 'lucide-react';
+import { X, PlusCircle, Users, Calendar, Phone, Link2, FileText, CheckSquare, Building2, Folder, ExternalLink, Crown } from 'lucide-react';
 import { Client, TaskItem, CompanyType } from '../types';
 import { createDefaultCoreTasks, COMPANY_OPTIONS, DRIVE_LINKS } from '../data/initialClients';
 import { parseDate, formatDateToYYYYMMDD, getTodayStr } from '../utils/dateUtils';
@@ -80,12 +80,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   const [notes, setNotes] = useState('');
   const [autoAddDefaultTasks, setAutoAddDefaultTasks] = useState(true);
 
-  // AI File Scan State
-  const [isAnalyzingFile, setIsAnalyzingFile] = useState(false);
-  const [aiAnalysisSuccess, setAiAnalysisSuccess] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
-
   const DRAFT_KEY = 'crm_add_client_draft';
 
   // Helper to reset form state to pristine defaults
@@ -112,9 +106,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
     setThemeColor('slate');
     setNotes('');
     setAutoAddDefaultTasks(true);
-    setUploadedFileName(null);
-    setAiAnalysisSuccess(false);
-    setAiErrorMessage(null);
   };
 
   // Safe close handler that resets form state to prevent data leakage
@@ -158,9 +149,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
       setThemeColor(clientToEdit.themeColor || 'slate');
       setNotes(clientToEdit.notes || '');
       setAutoAddDefaultTasks(false);
-      setUploadedFileName(null);
-      setAiAnalysisSuccess(false);
-      setAiErrorMessage(null);
     } else {
       // Adding new client: load from draft if available, otherwise reset
       try {
@@ -212,91 +200,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   }, [isOpen, clientToEdit, code, clientName, companyName, clientNumber, groupName, isVip, contract, contractDate, economyFullPackageMonths, economyMediaMonths, influencer, startDate, durationMonths, caseStatus, briefLink, whatsappGroupLink, driveFolderUrl, planLinks, themeColor, notes, autoAddDefaultTasks]);
 
   if (!isOpen) return null;
-
-  const handleFileUploadAndAnalyze = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = ''; // choosing the same file again must analyse it again
-
-    setUploadedFileName(file.name);
-    setIsAnalyzingFile(true);
-    setAiAnalysisSuccess(false);
-    setAiErrorMessage(null);
-
-    try {
-      const reader = new FileReader();
-
-      // Text files vs binary/PDF/images
-      if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.json')) {
-        reader.onload = async (evt) => {
-          const textContent = evt.target?.result as string;
-          await processAnalysisApi({ fileText: textContent, fileName: file.name });
-        };
-        reader.readAsText(file);
-      } else {
-        reader.onload = async (evt) => {
-          const base64Data = evt.target?.result as string;
-          await processAnalysisApi({
-            fileBase64: base64Data,
-            mimeType: file.type || 'application/pdf',
-            fileName: file.name,
-          });
-        };
-        reader.readAsDataURL(file);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAiErrorMessage('تعذر قراءة الملف. الرجاء التأكد من سلامة الملف وإعادة المحاولة.');
-      setIsAnalyzingFile(false);
-    }
-  };
-
-  const processAnalysisApi = async (payload: { fileBase64?: string; mimeType?: string; fileText?: string; fileName?: string }) => {
-    try {
-      const idToken = await user?.getIdToken();
-      const res = await fetch('/api/ai/analyze-client-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify(payload),
-      });
-
-      // The server may answer with an HTML error page (e.g. file too large); never show a raw
-      // "Unexpected token <" JSON error to the user.
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'فشل تحليل البيانات من الملف');
-      }
-
-      const extracted = data.data;
-
-      if (extracted.clientName) setClientName(extracted.clientName);
-      if (extracted.code) setCode(extracted.code);
-      if (extracted.companyName && COMPANY_OPTIONS.includes(extracted.companyName as any)) {
-        setCompanyName(extracted.companyName as CompanyType);
-      }
-      if (extracted.clientNumber) setClientNumber(extracted.clientNumber);
-      if (extracted.contract) setContract(extracted.contract);
-      if (extracted.caseStatus) setCaseStatus(extracted.caseStatus);
-      if (extracted.startDate) setStartDate(extracted.startDate);
-      if (extracted.contractDate) setContractDate(extracted.contractDate);
-      if (extracted.durationMonths) setDurationMonths(Number(extracted.durationMonths));
-      if (extracted.groupName) setGroupName(extracted.groupName);
-      if (extracted.notes) setNotes(extracted.notes);
-      if (extracted.driveFolderUrl) setDriveFolderUrl(extracted.driveFolderUrl);
-
-      setAiAnalysisSuccess(true);
-    } catch (err: any) {
-      console.error('AI Analysis failed:', err);
-      setAiErrorMessage(err.message || 'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي لقراءة المستند.');
-    } finally {
-      setIsAnalyzingFile(false);
-    }
-  };
 
   const canTransferOwner = isAdminUser(user, profile) && staffOptions.length > 0;
   const currentOwnerName = clientToEdit
@@ -522,43 +425,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
 
-          {/* Fill the form from the client's contract / brief (server: /api/ai/analyze-client-file).
-              New clients only: on an existing client it would overwrite fields the team already checked. */}
-          {!clientToEdit && (
-            <div className="space-y-2">
-              <div className="flex flex-col gap-3 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-indigo-500/40 dark:bg-indigo-500/10">
-                <div className="flex items-start gap-2.5">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" />
-                  <div>
-                    <p className="font-bold text-[var(--text)]">تعبئة البيانات من ملف العميل</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">ارفع العقد أو البريف (PDF أو صورة أو ملف نصي) ليتم ملء الحقول تلقائياً، ثم راجعها قبل الحفظ.</p>
-                  </div>
-                </div>
-                <label
-                  className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 font-bold text-white transition-colors hover:bg-indigo-700 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:ring-offset-2 ${isAnalyzingFile ? 'pointer-events-none opacity-70' : ''}`}
-                >
-                  {isAnalyzingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {isAnalyzingFile ? 'جاري تحليل الملف...' : 'رفع ملف'}
-                  <input
-                    type="file"
-                    accept=".pdf,image/*,.txt,.csv,.json"
-                    className="sr-only"
-                    onChange={handleFileUploadAndAnalyze}
-                    disabled={isAnalyzingFile}
-                  />
-                </label>
-              </div>
-              {aiAnalysisSuccess && !isAnalyzingFile && (
-                <p role="status" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                  تم ملء البيانات من الملف{uploadedFileName ? ` (${uploadedFileName})` : ''}. راجعها قبل الحفظ.
-                </p>
-              )}
-              {aiErrorMessage && !isAnalyzingFile && (
-                <p role="alert" className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{aiErrorMessage}</p>
-              )}
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Code */}
