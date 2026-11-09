@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 210" width="100%" height="100%">
+  <!-- Left: Speed Lines (3 rounded pills) -->
+  <rect x="16" y="98" width="34" height="12" rx="6" fill="#7065FF" />
+  <rect x="0" y="127" width="50" height="14" rx="7" fill="#7065FF" />
+  <rect x="16" y="157" width="34" height="12" rx="6" fill="#7065FF" />
+
+  <!-- Taa Marbuta 2 Dots (above badge) -->
+  <circle cx="115" cy="30" r="21" fill="#7065FF" />
+  <circle cx="161" cy="30" r="21" fill="#7065FF" />
+
+  <!-- Badge / Taa Marbuta Shape -->
+  <path d="M 62 70 
+           C 62 62, 68 56, 76 56 
+           L 155 56 
+           C 188 56, 216 80, 216 112 
+           L 216 186 
+           L 76 186 
+           C 68 186, 62 180, 62 172 
+           Z" 
+        fill="#7065FF" />
+
+  <!-- Inner Dark Box with Rounded Corners inside Badge -->
+  <rect x="96" y="86" width="82" height="80" rx="22" fill="#090814" />
+
+  <!-- Checkmark inside Badge -->
+  <path d="M 111 127 L 128 144 L 166 104" 
+        fill="none" 
+        stroke="#7065FF" 
+        stroke-width="13" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+
+  <!-- Letter Faa (فـ) Body & Connecting Stem -->
+  <path d="M 216 160 
+           L 272 160 
+           L 272 126 
+           C 272 82, 298 56, 338 56 
+           C 378 56, 398 84, 398 126 
+           L 398 160 
+           L 418 160 
+           C 424 160, 428 164, 428 170 
+           C 428 176, 424 186, 418 186 
+           L 216 186 
+           Z" 
+        fill="#0D0D12" />
+
+  <!-- Faa Inner Eye Cutout -->
+  <path d="M 305 128 
+           C 305 104, 318 88, 338 88 
+           C 358 88, 368 104, 368 128 
+           L 368 160 
+           L 305 160 
+           Z" 
+        fill="#ffffff" />
+
+  <!-- Faa Dot (above loop) -->
+  <circle cx="338" cy="28" r="21" fill="#0D0D12" />
+
+  <!-- Right Letter Dal (د) -->
+  <path d="M 436 84 
+           C 436 76, 442 70, 450 70 
+           L 504 70 
+           C 538 70, 554 94, 554 124 
+           C 554 154, 538 186, 504 186 
+           L 450 186 
+           C 442 186, 436 180, 436 172 
+           C 436 164, 442 158, 450 158 
+           L 496 158 
+           C 514 158, 524 144, 524 124 
+           C 524 104, 514 96, 496 96 
+           L 450 96 
+           C 442 96, 436 90, 436 84 
+           Z" 
+        fill="#0D0D12" />
+
+  <!-- Dal Outer 3 Dots along the curve -->
+  <circle cx="538" cy="102" r="8" fill="#7065FF" />
+  <circle cx="546" cy="126" r="8" fill="#7065FF" />
+  <circle cx="538" cy="150" r="8" fill="#7065FF" />
+</svg>

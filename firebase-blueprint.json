@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user in the agency department.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "account_manager_head", "member", "pending", "suspended"] },
+        "status": { "type": "string", "enum": ["active", "suspended", "pending"] },
+        "isSuspended": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "role", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "A client managed by the agency.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 50 },
+        "clientName": { "type": "string", "maxLength": 200 },
+        "clientNumber": { "type": "string", "maxLength": 50 },
+        "groupName": { "type": "string", "maxLength": 200 },
+        "contract": { "type": "string", "maxLength": 100 },
+        "influencer": { "type": "string", "maxLength": 200 },
+        "startDate": { "type": "string" },
+        "durationMonths": { "type": "number" },
+        "endDate": { "type": "string" },
+        "caseStatus": { "type": "string", "maxLength": 50 },
+        "briefLink": { "type": "string", "maxLength": 500 },
+        "whatsappGroupLink": { "type": "string", "maxLength": 500 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "isLost": { "type": "boolean" },
+        "renewalCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["code", "clientName", "clientNumber", "groupName", "contract", "startDate", "durationMonths", "endDate", "caseStatus", "createdAt", "createdBy"]
+    },
+    "TaskItem": {
+      "title": "TaskItem",
+      "description": "A task associated with a client.",
+      "type": "object",
+      "properties": {
+        "taskNumber": { "type": "string", "maxLength": 50 },
+        "title": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "maxLength": 100 },
+        "startDate": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "completedAt": { "type": "string" },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "link": { "type": "string", "maxLength": 500 },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["taskNumber", "title", "category", "startDate", "dueDate", "completed", "createdBy"]
+    },
+    "DailyActivation": {
+      "title": "DailyActivation",
+      "description": "A daily activation associated with a client.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "department": { "type": "string", "maxLength": 100 },
+        "platform": { "type": "string", "maxLength": 100 },
+        "activityType": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "link": { "type": "string", "maxLength": 500 },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["date", "department", "title", "createdBy", "createdAt"]
+    },
+    "ClientActivity": {
+      "title": "ClientActivity",
+      "description": "An activity log entry for a client.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "maxLength": 200 },
+        "details": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string" },
+        "performedBy": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["action", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System or task notification for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "createdAt"]
+    },
+    "UserPresence": {
+      "title": "UserPresence",
+      "description": "Live presence tracking and last seen for team staff.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "state": { "type": "string", "enum": ["online", "offline"] },
+        "last_changed": { "type": "string" },
+        "lastHeartbeat": { "type": "number" }
+      },
+      "required": ["userId", "state", "last_changed"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles with roles."
+    },
+    "presence/{userId}": {
+      "schema": { "$ref": "#/entities/UserPresence" },
+      "description": "Live presence status for a staff member."
+    },
+    "clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Client records."
+    },
+    "clients/{clientId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/TaskItem" },
+      "description": "Tasks for a specific client."
+    },
+    "clients/{clientId}/dailyActivations/{activationId}": {
+      "schema": { "$ref": "#/entities/DailyActivation" },
+      "description": "Daily activations for a specific client."
+    },
+    "clients/{clientId}/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ClientActivity" },
+      "description": "Activities log for a specific client."
+    },
+    "notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Notifications for staff."
+    }
+  }
+}

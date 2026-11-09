@@ -1,0 +1,8 @@
+{
+  "name": "Account Management CRM",
+  "description": "تطبيق إدارة وتتبع العملاء، متابعة التاسكات والتواريخ، حساب التأخير تلقائياً والتنبيه بالمواعيد القادمة",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,243 @@
+  const handleReorderTasks = async (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+
+    // Use order field if present, otherwise fallback to array index
+    const tasksList = client.tasks || [];
+    const sortedTasks = [...tasksList].sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : 999;
+      const orderB = b.order !== undefined ? b.order : 999;
+      return orderA - orderB;
+    });
+
+    const draggedIndex = sortedTasks.findIndex(t => t.id === draggedId);
+    const targetIndex = sortedTasks.findIndex(t => t.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const [movedTask] = sortedTasks.splice(draggedIndex, 1);
+    sortedTasks.splice(targetIndex, 0, movedTask);
+
+    // Reassign order
+    const updatedTasks = sortedTasks.map((t, index) => ({ ...t, order: index }));
+
+    // Send updates to backend if available
+    if (onUpdateTask) {
+      updatedTasks.forEach(task => {
+        onUpdateTask(client.id, { id: task.id, order: task.order } as TaskItem);
+      });
+    }
+
+    // Call updateClient for legacy/fallback state management
+    onUpdateClient({
+      ...client,
+      tasks: updatedTasks
+    });
+  };
+
+  const trendData = React.useMemo(() => {
+    const data = [];
+    const now = new Date();
+    
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleDateString('ar-EG', { month: 'short' });
+      
+      const monthTasks = client.tasks.filter(t => {
+        if (!t.dueDate) return false;
+        const tDate = new Date(t.dueDate);
+        return tDate.getMonth() === d.getMonth() && tDate.getFullYear() === d.getFullYear();
+      });
+      
+      const total = monthTasks.length;
+      const completed = monthTasks.filter(t => t.completed).length;
+      const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+      
+      data.push({
+        month: monthLabel,
+        rate: rate,
+        total: total,
+        completed: completed
+      });
+    }
+    return data;
+  }, [client.tasks]);
+
+  const stats = calculateClientProgress(client);
+  const waLink = getWhatsAppLink(client.clientNumber, `مرحباً ${client.clientName}، متابعة بخصوص رحلة العمل والتاسكات`);
+
+  // Days remaining in contract
+  const contractDaysDiff = getRemainingContractDays(client);
+
+  // Category Icon Map
+  const categoryIconMap: Record<string, React.ReactNode> = {
+    Key: <Key className="w-4 h-4" />,
+    FileText: <FileText className="w-4 h-4" />,
+    Palette: <Palette className="w-4 h-4" />,
+    Video: <Video className="w-4 h-4" />,
+    Globe: <Globe className="w-4 h-4" />,
+    Users: <Users className="w-4 h-4" />,
+    CalendarCheck: <CalendarCheck className="w-4 h-4" />,
+    CheckSquare: <CheckSquare className="w-4 h-4" />
+  };
+
+  // Filter and sort tasks by order
+  const clientTasks = client.tasks || [];
+  const filteredTasks = (selectedCategory === 'all'
+    ? clientTasks
+    : clientTasks.filter(t => t.category === selectedCategory))
+    .sort((a, b) => {
+      const dateA = new Date(a.dueDate || '2999-12-31').getTime();
+      const dateB = new Date(b.dueDate || '2999-12-31').getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      const orderA = a.order !== undefined ? a.order : 999;
+      const orderB = b.order !== undefined ? b.order : 999;
+      return orderA - orderB;
+    });
+
+  const handleMarkLost = () => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'إنهاء / إغلاق حساب العميل',
+      message: 'هل أنت متأكد من تغيير حالة العميل إلى "مفقود/منتهي"؟',
+      confirmText: 'إغلاق الحساب',
+      variant: 'warning',
+      onConfirm: () => {
+        onUpdateClient({
+          ...client,
+          isLost: true,
+          caseStatus: 'مكتمل'
+        });
+      }
+    });
+  };
+
+  const handleRenew = () => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'تجديد عقد العميل',
+      message: 'هل ترغب بتجديد عقد العميل؟ سيؤدي هذا لتحديث حالة العميل وتصفير التأخيرات السابقة.',
+      confirmText: 'تجديد العقد',
+      variant: 'info',
+      onConfirm: () => {
+        onUpdateClient({
+          ...client,
+          isLost: false,
+          renewalCount: (client.renewalCount || 0) + 1,
+          caseStatus: 'نشط'
+        });
+        onOpenEditClient(client);
+      }
+    });
+  };
+
+  // Toggle Task Completed
+  const handleToggleTask = (taskId: string) => {
+    const tasks = client.tasks || [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      completed: !task.completed,
+      completedAt: !task.completed ? new Date().toISOString().split('T')[0] : undefined
+    };
+
+    if (onUpdateTask) {
+      onUpdateTask(client.id, updatedTask);
+    }
+    
+    // Update local state for immediate feedback
+    onUpdateClient({
+      ...client,
+      tasks: tasks.map(t => t.id === taskId ? updatedTask : t)
+    });
+  };
+
+  // Change task completion date directly
+  const handleUpdateCompletedAt = (taskId: string, newCompletedAtDate: string) => {
+    const tasks = client.tasks || [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      completed: true,
+      completedAt: newCompletedAtDate
+    };
+
+    if (onUpdateTask) {
+      onUpdateTask(client.id, updatedTask);
+    }
+
+    onUpdateClient({
+      ...client,
+      tasks: tasks.map(t => t.id === taskId ? updatedTask : t)
+    });
+  };
+
+  // Change task due date directly
+  const handleUpdateDueDate = (taskId: string, newDueDate: string) => {
+    if (!newDueDate) return;
+    const tasks = client.tasks || [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      dueDate: newDueDate
+    };
+
+    if (onUpdateTask) {
+      onUpdateTask(client.id, updatedTask);
+    }
+
+    onUpdateClient({
+      ...client,
+      tasks: tasks.map(t => t.id === taskId ? updatedTask : t)
+    });
+  };
+
+  // Save task notes
+  const handleSaveNotes = (taskId: string) => {
+    const tasks = client.tasks || [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      notes: taskNotes
+    };
+
+    if (onUpdateTask) {
+      onUpdateTask(client.id, updatedTask);
+    }
+
+    onUpdateClient({
+      ...client,
+      tasks: tasks.map(t => t.id === taskId ? updatedTask : t)
+    });
+
+    setEditingTaskId(null);
+  };
+
+  // Delete task
+  const handleDeleteTask = (taskId: string) => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'حذف المهمة',
+      message: 'هل أنت متأكد من حذف هذه المهمة من رحلة العميل؟',
+      confirmText: 'حذف المهمة',
+      variant: 'danger',
+      onConfirm: () => {
+        if (onDeleteTask) {
+          onDeleteTask(client.id, taskId);
+        }
+        const updatedTasks = (client.tasks || []).filter(t => t.id !== taskId);
+        onUpdateClient({
+          ...client,
+          tasks: updatedTasks
+        });
+      }
+    });
+  };
+

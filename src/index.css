@@ -1,0 +1,419 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-hover: #f1f5f9;
+    --input-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+  }
+
+  /* Dark mode uses ONE neutral grey family. The header, footer and client cards were neutral grey,
+     while the page, panels and most dark: classes were navy (Tailwind slate / gray), so screens mixed
+     two colours. The tokens below are the neutral versions of the old navy ones (same lightness), and
+     slate / gray are remapped to zinc in dark mode only, which changes every dark: slate / gray class
+     at once without touching light mode. */
+  html.dark {
+    --bg: #0f0f11;
+    --surface: #18181b;
+    --surface-hover: #232327;
+    --input-bg: #18181b;
+    --border: #27272a;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+
+    --color-slate-50: oklch(98.5% 0 none);
+    --color-slate-100: oklch(96.7% 0.001 286.375);
+    --color-slate-200: oklch(92% 0.004 286.32);
+    --color-slate-300: oklch(87.1% 0.006 286.286);
+    --color-slate-400: oklch(70.5% 0.015 286.067);
+    --color-slate-500: oklch(55.2% 0.016 285.938);
+    --color-slate-600: oklch(44.2% 0.017 285.786);
+    --color-slate-700: oklch(37% 0.013 285.805);
+    --color-slate-800: oklch(27.4% 0.006 286.033);
+    --color-slate-900: oklch(21% 0.006 285.885);
+    --color-slate-950: oklch(14.1% 0.005 285.823);
+    --color-gray-50: oklch(98.5% 0 none);
+    --color-gray-100: oklch(96.7% 0.001 286.375);
+    --color-gray-200: oklch(92% 0.004 286.32);
+    --color-gray-300: oklch(87.1% 0.006 286.286);
+    --color-gray-400: oklch(70.5% 0.015 286.067);
+    --color-gray-500: oklch(55.2% 0.016 285.938);
+    --color-gray-600: oklch(44.2% 0.017 285.786);
+    --color-gray-700: oklch(37% 0.013 285.805);
+    --color-gray-800: oklch(27.4% 0.006 286.033);
+    --color-gray-900: oklch(21% 0.006 285.885);
+    --color-gray-950: oklch(14.1% 0.005 285.823);
+  }
+
+  html {
+    color-scheme: light;
+  }
+  
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  input,
+  textarea,
+  select {
+    background-color: var(--input-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  /* Smooth transitions */
+  *, *::before, *::after {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Specific overrides for remaining dark classes */
+  html.dark .bg-slate-50, 
+  html.dark .bg-slate-100 {
+    background-color: var(--bg);
+  }
+  
+  html.dark .bg-white {
+    background-color: var(--surface);
+  }
+
+  /* Custom scrollbar for dark mode */
+  html.dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  html.dark ::-webkit-scrollbar-track {
+    background: var(--bg);
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  /* Sleek custom slim scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.35);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.65);
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.35) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::selection {
+    background: #6366f1;
+    color: #ffffff;
+  }
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  /* Page Setup for A4 */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+
+  /* Global Root & Body Reset for Ink-Friendly Print */
+  html, body, #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    direction: rtl !important;
+    text-align: right !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide interactive, navigational, and non-report elements */
+  header,
+  nav,
+  aside,
+  .sidebar,
+  .navbar,
+  .print-hide,
+  .print\:hidden,
+  [data-no-print],
+  button,
+  .btn,
+  input[type="search"],
+  .toaster,
+  div[data-toaster],
+  div[role="status"],
+  div[role="dialog"] > div:first-child,
+  .custom-scrollbar::-webkit-scrollbar,
+  .lucide-grip-vertical,
+  .drag-handle {
+    display: none !important;
+  }
+
+  /* Remove shadows, fixed max-widths, and dark theme backgrounds */
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* Expand main containers to full A4 width */
+  main,
+  .max-w-\[1600px\],
+  .max-w-7xl,
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Prevent split of cards, tables, workload sections across pages */
+  .print-break-inside-avoid,
+  .break-inside-avoid,
+  .data-stat-card,
+  .data-client-card,
+  .data-task-card,
+  .data-workload-card,
+  [data-stat-card],
+  [data-client-card],
+  [data-task-card],
+  [data-workload-card],
+  .client-card,
+  .task-card,
+  tr,
+  thead,
+  fieldset {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Prevent headings from detaching from their subsequent sections */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    color: #0f172a !important;
+  }
+
+  /* Tables formatting */
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 8px 10px !important;
+    color: #0f172a !important;
+    background-color: transparent !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Ink-friendly cards and containers styling */
+  .bg-\[\#18181B\],
+  .bg-\[\#27272A\],
+  .dark\:bg-\[\#18181B\],
+  .dark\:bg-\[\#27272A\],
+  .dark\:bg-slate-900,
+  .dark\:bg-slate-800,
+  .bg-slate-900,
+  .bg-slate-800,
+  .bg-\[var\(--surface\)\],
+  .bg-\[var\(--bg\)\] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Borders normalization for ink friendliness */
+  .border,
+  .border-t,
+  .border-b,
+  .border-l,
+  .border-r,
+  [class*="border-"] {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* High contrast text in print */
+  .text-slate-900,
+  .text-slate-800,
+  .text-slate-700,
+  .text-slate-100,
+  .text-slate-200,
+  .dark\:text-slate-100,
+  .dark\:text-slate-200,
+  .dark\:text-white,
+  .text-\[var\(--text\)\] {
+    color: #0f172a !important;
+  }
+
+  .text-slate-500,
+  .text-slate-400,
+  .text-\[var\(--text-muted\)\],
+  .dark\:text-slate-400 {
+    color: #475569 !important;
+  }
+
+  /* Keep badge and progress tints clean and readable */
+  .bg-emerald-50, .bg-emerald-100, .bg-emerald-500\/10 {
+    background-color: #ecfdf5 !important;
+  }
+  .bg-rose-50, .bg-rose-100, .bg-rose-500\/10 {
+    background-color: #fff1f2 !important;
+  }
+  .bg-amber-50, .bg-amber-100, .bg-amber-500\/10 {
+    background-color: #fffbeb !important;
+  }
+  .bg-indigo-50, .bg-indigo-100, .bg-indigo-500\/10 {
+    background-color: #eef2ff !important;
+  }
+
+  /* Preserve grid layouts in print with clean 2 columns for cards */
+  .grid {
+    display: grid !important;
+  }
+
+  .print\:w-full,
+  div.print\:w-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .print\:grid-cols-2,
+  div.print\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  /* Badges and tags print rules: transparent/white bg, crisp borders, dark black text */
+  .print\:border-gray-300 {
+    border-color: #64748b !important;
+  }
+
+  .print\:bg-white {
+    background-color: #ffffff !important;
+  }
+
+  .print\:text-black {
+    color: #000000 !important;
+  }
+
+  /* Client cards print specifications */
+  [data-client-card],
+  .client-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@keyframes svg-glow {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(79, 70, 229, 0.3));
+    opacity: 0.9;
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.7));
+    opacity: 1;
+  }
+  100% {
+    filter: drop-shadow(0 0 2px rgba(79, 70, 229, 0.3));
+    opacity: 0.9;
+  }
+}
+
+.animate-svg-glow path {
+  animation: svg-glow 4s ease-in-out infinite alternate;
+}
+

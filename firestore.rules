@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Auth & Identity helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // IMPORTANT: every field below is read with .get(name, default). In Security Rules, reading a
+    // field that a document does not have (e.g. data.disabled when there is no `disabled` field) is an
+    // evaluation ERROR, and an error denies the request. The old checks read `disabled` directly, and
+    // no profile has that field, so every account except the super admin was denied everything:
+    // members saw no clients, not even the ones transferred to them.
+
+    // Must stay identical to SUPER_ADMIN_EMAIL in src/utils/userStatusUtils.ts
+    // The e-mail must be verified (Google accounts always are); otherwise anyone could create an
+    // e-mail/password account with this address and get full access.
+    function isSuperAdmin() {
+      return isSignedIn() &&
+        request.auth.token.get('email', '') == 'ahmedgoda.manager@gmail.com' &&
+        request.auth.token.get('email_verified', false) == true;
+    }
+
+    function userDocExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // A profile is suspended or pending if it specifies a suspended/pending role, status, or flag.
+    // A missing field counts as "not set" (it used to make the whole check fail).
+    function isSuspendedProfile(userProfile) {
+      return (userProfile.get('role', '') in ['pending', 'suspended', 'disabled', 'stopped']) ||
+        (userProfile.get('status', '') in ['pending', 'suspended', 'disabled', 'inactive']) ||
+        (userProfile.get('isSuspended', false) == true) ||
+        (userProfile.get('disabled', false) == true) ||
+        (userProfile.get('isActive', true) == false);
+    }
+
+    function isSuspendedUser() {
+      return isSignedIn() && !isSuperAdmin() && userDocExists() && isSuspendedProfile(getUserData());
+    }
+
+    // Active staff: authenticated, not suspended, and holds a valid staff role.
+    // Must stay identical to ACTIVE_ROLES in src/utils/userStatusUtils.ts
+    function isActiveStaff() {
+      return isSignedIn() && (
+        isSuperAdmin() || (
+          userDocExists() &&
+          !isSuspendedProfile(getUserData()) &&
+          (getUserData().get('role', '') in ['admin', 'account_manager_head', 'member', 'user', 'manager', 'account_manager'])
+        )
+      );
+    }
+
+    // Admin privileges: super admin or approved administrator
+    function isAdmin() {
+      return isSignedIn() && (
+        isSuperAdmin() || (
+          userDocExists() &&
+          !isSuspendedProfile(getUserData()) &&
+          (getUserData().get('role', '') == 'admin')
+        )
+      );
+    }
+
+    // USERS COLLECTION:
+    // - Individual users can read their own user record to load their profile/status in AuthContext
+    // - Active staff and admins can read individual user records
+    // - Listing all users is strictly restricted to active staff/admin (denied to suspended users)
+    // - A new user can create ONLY their own record and ONLY as 'pending' (waiting for an admin).
+    //   Previously any signed-in Google account could create its own record with role 'admin'.
+    // - Only Admins can modify roles/statuses; active users can only update their own non-privileged fields
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isActiveStaff());
+      allow list: if isActiveStaff();
+
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        isSuperAdmin() ||
+        (
+          request.resource.data.role == 'pending' &&
+          request.resource.data.get('isActive', false) != true
+        )
+      );
+
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (
+          request.auth.uid == userId &&
+          isActiveStaff() &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'isSuspended', 'disabled', 'isActive'])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // CLIENTS COLLECTION & SUBCOLLECTIONS: active staff only.
+    // The public Client Portal used to open the client document itself, so anyone with a portal
+    // link (or a guessed client id) could read every field: internal notes, brief, phone number,
+    // WhatsApp / Drive links. The portal now reads portals/{token} (below) instead.
+    match /clients/{clientId} {
+      allow get, list: if isActiveStaff();
+      allow write: if isActiveStaff();
+
+      match /tasks/{taskId} {
+        allow read, write: if isActiveStaff();
+      }
+
+      // Internal data, not shown in the public portal.
+      match /dailyActivations/{activationId} {
+        allow read, write: if isActiveStaff();
+      }
+
+      match /activities/{activityId} {
+        allow read, write: if isActiveStaff();
+      }
+    }
+
+    // PUBLIC CLIENT PORTAL:
+    // One document per shared link, named by a random 32-character token. It holds only what the
+    // portal page shows (client name, company, package, start date and the task list), is written
+    // by staff whenever the client changes, and can be opened by anyone who has the link.
+    // Nobody can list the collection, so a link cannot be found without having it.
+    match /portals/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isActiveStaff() && token.size() >= 32;
+      allow delete: if isActiveStaff();
+    }
+
+    // NOTIFICATIONS:
+    // Staff can send notifications to anyone; each user reads and updates only their own.
+    match /notifications/{notificationId} {
+      allow read: if isActiveStaff() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isActiveStaff();
+      allow update: if isActiveStaff() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // PRESENCE:
+    // Active staff can read presence status; signed in users can update their own presence
+    match /presence/{userId} {
+      allow read: if isSignedIn() && !isSuspendedUser();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}
