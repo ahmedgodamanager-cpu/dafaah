@@ -1009,10 +1009,10 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
                   </div>
                   {(() => {
                     const elapsedContractDaysSinceStart = client.startDate ? -getDaysDifference(client.startDate) : -1;
-                    const isFirst40Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
-                    return isFirst40Days ? (
+                    const isFirst30Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
+                    return isFirst30Days ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 shadow-xs">
-                        ⭐ الشهر الأول (40 يوم)
+                        ⭐ الشهر الأول (30 يوم)
                       </span>
                     ) : null;
                   })()}

@@ -95,7 +95,7 @@ const ClientTableRow = React.memo<ClientTableRowProps>(({
     return client.startDate ? -getDaysDifference(client.startDate) : -1;
   }, [client.startDate]);
 
-  const isFirst40Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
+  const isFirst30Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
 
   const { profile } = useAuth();
   const canShowAssigned = profile?.role === 'admin' || profile?.role === 'account_manager_head';
@@ -143,9 +143,9 @@ const ClientTableRow = React.memo<ClientTableRowProps>(({
           >
             {client.clientName}
           </button>
-          {isFirst40Days && (
+          {isFirst30Days && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 shadow-xs">
-              ⭐ الشهر الأول (40 يوم)
+              ⭐ الشهر الأول (30 يوم)
             </span>
           )}
         </div>
