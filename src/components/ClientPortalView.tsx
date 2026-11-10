@@ -21,6 +21,7 @@ import {
 import { Client, TaskItem } from '../types';
 import { formatDateArabic, getDaysDifference } from '../utils/dateUtils';
 import { getPortalUrl } from '../utils/portalUtils';
+import { sortTasksByDueDate } from '../utils/taskStore';
 import { usePortalLink } from '../context/PortalLinkContext';
 import { toast } from 'react-hot-toast';
 
@@ -44,7 +45,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Calculate task statistics
   // All hooks run BEFORE the early return below: returning first and calling hooks afterwards
   // made React throw "Rendered fewer hooks than expected" when a shown client became unavailable.
-  const tasks = useMemo(() => client?.tasks || [], [client?.tasks]);
+  // Shared links show a saved copy of the tasks, which may predate the current sort order.
+  const tasks = useMemo(() => sortTasksByDueDate(client?.tasks || []), [client?.tasks]);
   
   const completedTasks = useMemo(() => tasks.filter(t => t.completed), [tasks]);
   const remainingTasks = useMemo(() => tasks.filter(t => !t.completed), [tasks]);

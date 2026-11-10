@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Client } from '../types';
 import { Building2, Download, Printer, FileDown , Search, ExternalLink, MessageSquare, Briefcase, Calendar as CalendarIcon, Clock, Link as LinkIcon, FileText, ArrowLeft, Phone, User as UserIcon, ArrowRightLeft, Loader2, X, Copy, Check, Eye } from 'lucide-react';
 import { formatDateArabic } from '../utils/dateUtils';
+import { englishFontFace } from '../utils/fonts';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -123,12 +124,13 @@ export function OperationsView({ clients, onSelectClient }: OperationsViewProps)
 
     const printStyles = `
       <style>
+        ${englishFontFace()}
         :root {
           --text: #0f172a;
           --bg: #ffffff;
         }
-        body { 
-          font-family: system-ui, -apple-system, sans-serif; 
+        body {
+          font-family: 'Roken', system-ui, -apple-system, sans-serif;
           padding: 20px; 
           direction: rtl; 
           background: white; 
@@ -200,8 +202,10 @@ export function OperationsView({ clients, onSelectClient }: OperationsViewProps)
           ${tableHtml}
           <script>
             window.onload = () => {
-              window.print();
-              setTimeout(() => { window.close(); }, 500);
+              document.fonts.ready.then(() => {
+                window.print();
+                setTimeout(() => { window.close(); }, 500);
+              });
             };
           </script>
         </body>

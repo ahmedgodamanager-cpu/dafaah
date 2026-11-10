@@ -1,8 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+/* Roken is the app's English font. It has no Arabic letters, so Arabic text falls back to Cairo. */
+@font-face {
+  font-family: 'Roken';
+  src: url('/fonts/Roken-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  /* Everything Roken draws except spaces: its space is much wider than Cairo's and would open up Arabic text. */
+  unicode-range: U+0021-007E, U+00A1-00AC, U+00AE-024F, U+0300-036F, U+2010-205E, U+20A0-20CF, U+2100-22FF;
+  /* Cairo's line metrics, so a line that mixes both fonts keeps its height. */
+  ascent-override: 130.3%;
+  descent-override: 57.1%;
+  line-gap-override: 0%;
+}
+
 @theme {
-  --font-sans: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Roken', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Dates, codes and counts use the English font too. */
+  --font-mono: 'Roken', 'Cairo', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -71,7 +88,7 @@
   body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: 'Cairo', sans-serif;
+    font-family: var(--font-sans);
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

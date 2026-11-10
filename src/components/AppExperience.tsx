@@ -51,7 +51,6 @@ const ease = [0.22, 1, 0.36, 1] as const;
 function ExperienceStyles() {
   return (
     <style>{`
-    :root { --font-sans: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .app-experience { min-height: 100vh; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
     .app-experience::selection { background: #6366f1; color: #ffffff; }
     .app-experience button, .app-experience a, .app-experience input, .app-experience select, .app-experience textarea { -webkit-tap-highlight-color: transparent; }
