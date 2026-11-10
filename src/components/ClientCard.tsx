@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { 
   Folder, 
   MessageSquare, 
@@ -10,18 +10,14 @@ import {
   Trash2, 
   Archive, 
   ArchiveRestore,
-  Link as LinkIcon,
-  Key
+  Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { Client, DashboardConfig } from '../types';
 import { getWhatsAppLink, getDaysDifference, getRemainingContractDays, formatDateArabic } from '../utils/dateUtils';
 import { usePortalLink } from '../context/PortalLinkContext';
 import { VipBadge } from './VipBadge';
 import { useAuth } from '../context/AuthContext';
-import { ClientCredentialsModal } from './ClientCredentialsModal';
 
 export interface ClientCardProps {
   client: Client;
@@ -34,7 +30,6 @@ export interface ClientCardProps {
   onArchiveToggle?: (client: Client) => void;
   onAddTask?: (clientId: string) => void;
   onTransfer?: (clientId: string) => void;
-  onManageCredentials?: (client: Client) => void;
   onUpdateClient?: (client: Partial<Client> & { id: string }) => Promise<boolean>;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -59,7 +54,6 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
   onArchiveToggle,
   onAddTask,
   onTransfer,
-  onManageCredentials,
   onUpdateClient,
   draggable = false,
   onDragStart,
@@ -218,47 +212,6 @@ ${taskListPreview}${moreTasksText}
   }, [client.startDate]);
 
   const isFirstMonth = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
-
-  // Credentials summary
-  const creds = client.credentials;
-  const socialCount = creds?.socialAccounts?.length || 0;
-  const adCount = creds?.adAccessAccounts?.length || 0;
-  const sallaStores = creds?.sallaAccounts || [];
-  const sallaCount = sallaStores.length;
-  const sallaAccessCount = sallaStores.reduce((acc, s) => acc + (s.accessEmails?.length || 0), 0);
-  const wordpressCount = creds?.wordpressSites?.length || 0;
-  const hasGmail = !!(creds?.gmailEmail || client.gmailEmail);
-  const totalCredsCount = socialCount + adCount + sallaCount + wordpressCount + (hasGmail ? 1 : 0);
-  const hasCredentials = totalCredsCount > 0 || !!creds?.notes;
-
-  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
-
-  const handleCredentialsClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onManageCredentials) {
-      onManageCredentials(client);
-    } else {
-      setIsCredentialsModalOpen(true);
-    }
-  }, [onManageCredentials, client]);
-
-  const handleSaveCredentials = useCallback(async (updated: Partial<Client> & { id: string }) => {
-    if (onUpdateClient) {
-      return onUpdateClient(updated);
-    }
-    try {
-      const clientDocRef = doc(db, 'clients', client.id);
-      await updateDoc(clientDocRef, {
-        credentials: updated.credentials,
-        gmailEmail: updated.gmailEmail || '',
-        lastUpdated: new Date().toISOString()
-      });
-      return true;
-    } catch (err) {
-      console.error('Error updating credentials:', err);
-      return false;
-    }
-  }, [onUpdateClient, client.id]);
 
   // Memoized action handlers
   const handleCardClick = useCallback(() => {
@@ -455,59 +408,6 @@ ${taskListPreview}${moreTasksText}
           )}
         </div>
 
-        {/* Credentials & Access Accounts Quick Badge */}
-        {hasCredentials ? (
-          <div 
-            onClick={handleCredentialsClick}
-            className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200/70 dark:border-purple-900/30 text-[11px] font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100/80 dark:hover:bg-purple-900/40 transition-all cursor-pointer group/creds shadow-2xs"
-            title="انقر لعرض وإدارة حسابات السوشيال ميديا والباسوردات وأكسيس الإعلانات"
-          >
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <Key className="w-3.5 h-3.5 text-[#593BFE] dark:text-purple-400 group-hover/creds:rotate-12 transition-transform shrink-0" />
-              <span className="font-bold text-slate-800 dark:text-slate-200">بيانات الحسابات:</span>
-              <div className="flex items-center gap-1 text-[10px] font-mono font-bold">
-                {sallaCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
-                    سلة ({sallaCount}{sallaAccessCount > 0 ? ` · ${sallaAccessCount} أكسيس` : ''})
-                  </span>
-                )}
-                {wordpressCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-bold">
-                    ووردبريس ({wordpressCount})
-                  </span>
-                )}
-                {hasGmail && (
-                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
-                    Gmail
-                  </span>
-                )}
-                {socialCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
-                    {socialCount} سوشيال
-                  </span>
-                )}
-                {adCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
-                    {adCount} إعلانات
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="text-[10px] text-[#593BFE] dark:text-purple-400 font-bold underline group-hover/creds:no-underline shrink-0">
-              عرض
-            </span>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={handleCredentialsClick}
-            className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 hover:text-[#593BFE] dark:hover:text-purple-400 transition-colors cursor-pointer w-fit py-0.5"
-            title="إضافة حسابات السوشيال ميديا والإعلانات والـ Gmail"
-          >
-            <Key className="w-3.5 h-3.5" />
-            <span>+ إضافة حسابات السوشيال والأكسيس</span>
-          </button>
-        )}
       </div>
 
       {/* Dates & Duration (Flexbox Row) */}
@@ -632,29 +532,6 @@ ${taskListPreview}${moreTasksText}
             )}
           </a>
 
-          {/* Manage Credentials (Social & Ad Access) Button */}
-          <button
-            type="button"
-            onClick={handleCredentialsClick}
-            className={`p-2 rounded-xl transition-colors relative cursor-pointer ${
-              hasCredentials
-                ? 'text-[#593BFE] dark:text-indigo-400 bg-purple-50/80 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800/60 shadow-2xs'
-                : 'text-gray-400 hover:text-[#593BFE] hover:bg-purple-50 dark:hover:bg-[#593BFE]/20 border border-gray-200 dark:border-gray-800'
-            }`}
-            title={
-              hasCredentials
-                ? `بيانات الحسابات والوصول (${totalCredsCount} مسجل)`
-                : 'إضافة حسابات السوشيال ميديا والإعلانات والـ Gmail'
-            }
-          >
-            <Key className="w-4 h-4" />
-            {hasCredentials && (
-              <span className="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 rounded-full bg-[#593BFE] text-white text-[9px] font-bold font-mono flex items-center justify-center shadow-xs">
-                {totalCredsCount}
-              </span>
-            )}
-          </button>
-
           {/* Copy Client Portal Link Button */}
           <button
             type="button"
@@ -738,14 +615,6 @@ ${taskListPreview}${moreTasksText}
         </div>
       )}
 
-      {isCredentialsModalOpen && (
-        <ClientCredentialsModal
-          isOpen={isCredentialsModalOpen}
-          onClose={() => setIsCredentialsModalOpen(false)}
-          client={client}
-          onSave={handleSaveCredentials}
-        />
-      )}
     </div>
   );
 });
