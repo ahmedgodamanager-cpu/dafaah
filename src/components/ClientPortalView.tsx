@@ -38,7 +38,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   onBackToApp,
   isStaffLoggedIn = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'first40' | 'remaining' | 'completed'>('first40');
+  const [activeTab, setActiveTab] = useState<'all' | 'first30' | 'remaining' | 'completed'>('first30');
   const [copiedLink, setCopiedLink] = useState(false);
   const getPortalLink = usePortalLink();
 
@@ -55,8 +55,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const completedCount = completedTasks.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  // Filter tasks for the First 40 Days (Month 1 / Initial Onboarding & Launch)
-  const first40DaysTasks = useMemo(() => {
+  // Filter tasks for the First 30 Days (Month 1 / Initial Onboarding & Launch)
+  const first30DaysTasks = useMemo(() => {
     return tasks.filter(task => {
       // Check monthIndex
       if (task.monthIndex === 1 || task.monthIndex === 0) return true;
@@ -64,23 +64,23 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       if (task.taskNumber && (task.taskNumber.includes('-M1') || task.taskNumber.includes('-M0'))) return true;
       // Check title for (الشهر 1)
       if (task.title && (task.title.includes('(الشهر 1)') || task.title.includes('(الشهر الأول)'))) return true;
-      // Default fallback: if client is 1 month or no month assigned, it belongs to first 40 days
+      // Default fallback: if client is 1 month or no month assigned, it belongs to first 30 days
       if (client?.durationMonths === 1) return true;
       return false;
     });
   }, [tasks, client?.durationMonths]);
 
-  const first40Completed = useMemo(() => first40DaysTasks.filter(t => t.completed), [first40DaysTasks]);
-  const first40Remaining = useMemo(() => first40DaysTasks.filter(t => !t.completed), [first40DaysTasks]);
-  const first40Progress = first40DaysTasks.length > 0 
-    ? Math.round((first40Completed.length / first40DaysTasks.length) * 100) 
+  const first30Completed = useMemo(() => first30DaysTasks.filter(t => t.completed), [first30DaysTasks]);
+  const first30Remaining = useMemo(() => first30DaysTasks.filter(t => !t.completed), [first30DaysTasks]);
+  const first30Progress = first30DaysTasks.length > 0 
+    ? Math.round((first30Completed.length / first30DaysTasks.length) * 100) 
     : 0;
 
   // Displayed tasks according to active tab
   const displayedTasks = useMemo(() => {
     switch (activeTab) {
-      case 'first40':
-        return first40DaysTasks;
+      case 'first30':
+        return first30DaysTasks;
       case 'remaining':
         return remainingTasks;
       case 'completed':
@@ -89,7 +89,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       default:
         return tasks;
     }
-  }, [activeTab, first40DaysTasks, remainingTasks, completedTasks, tasks]);
+  }, [activeTab, first30DaysTasks, remainingTasks, completedTasks, tasks]);
 
   // If client is missing or an error occurred, render clean error screen immediately
   if (!client || errorMessage) {
@@ -344,46 +344,46 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <span className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">{remainingTasks.length}</span>
             </div>
             <div className="bg-purple-50/60 dark:bg-purple-950/20 rounded-xl p-3 border border-purple-100 dark:border-purple-900/30 text-center">
-              <span className="text-[11px] font-bold text-[#593BFE] block mb-0.5">خطة الـ 40 يوم الأولى</span>
-              <span className="text-xl font-black text-[#593BFE] font-mono">{first40Completed.length}/{first40DaysTasks.length}</span>
+              <span className="text-[11px] font-bold text-[#593BFE] block mb-0.5">خطة الـ 30 يوم الأولى</span>
+              <span className="text-xl font-black text-[#593BFE] font-mono">{first30Completed.length}/{first30DaysTasks.length}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Featured Section: خطة الـ 40 يوم الأولى (مرحلة التأسيس والإطلاق) */}
+      {/* Featured Section: خطة الـ 30 يوم الأولى (مرحلة التأسيس والإطلاق) */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-8">
         <div className="rounded-3xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 border-2 border-amber-500/30 dark:border-amber-500/20 p-6 sm:p-7 relative overflow-hidden shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500 text-white shadow-sm mb-2">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>التركيز الأساسي • خطة الـ 40 يوم الأولى</span>
+                <span>التركيز الأساسي • خطة الـ 30 يوم الأولى</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                مرحلة التأسيس والانطلاق الأولي (40 يوماً)
+                مرحلة التأسيس والانطلاق الأولي (30 يوماً)
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
                 تركز هذه الخطة الحيوية على وضع اللبنات الأساسية للمشروع، إعداد الهوية والاستراتيجية، بناء الحسابات، وإطلاق الحملات الأولى بأعلى معايير الدقة.
               </p>
             </div>
 
-            {/* 40-Day Progress Widget */}
+            {/* 30-Day Progress Widget */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-amber-200 dark:border-slate-800 shadow-sm min-w-[200px] shrink-0 text-center">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">
-                إنجاز خطة الـ 40 يوماً
+                إنجاز خطة الـ 30 يوماً
               </span>
               <div className="text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">
-                {first40Progress}%
+                {first30Progress}%
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
                 <div 
                   className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-600 transition-all duration-500"
-                  style={{ width: `${first40Progress}%` }}
+                  style={{ width: `${first30Progress}%` }}
                 />
               </div>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
-                {first40Completed.length} من {first40DaysTasks.length} مهام منتهية
+                {first30Completed.length} من {first30DaysTasks.length} مهام منتهية
               </span>
             </div>
           </div>
@@ -398,14 +398,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-x-auto max-w-full">
             <button
               type="button"
-              onClick={() => setActiveTab('first40')}
+              onClick={() => setActiveTab('first30')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'first40'
+                activeTab === 'first30'
                   ? 'bg-white dark:bg-slate-900 text-[#593BFE] shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              ⭐ خطة الـ 40 يوم الأولى ({first40DaysTasks.length})
+              ⭐ خطة الـ 30 يوم الأولى ({first30DaysTasks.length})
             </button>
             <button
               type="button"
@@ -462,7 +462,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="space-y-3">
             {displayedTasks.map((task) => {
               const catBadge = getCategoryBadge(task.category);
-              const isFirst40 = task.monthIndex === 1 || task.monthIndex === 0;
+              const isFirst30 = task.monthIndex === 1 || task.monthIndex === 0;
 
               return (
                 <div
@@ -494,9 +494,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           {catBadge.label}
                         </span>
 
-                        {isFirst40 && (
+                        {isFirst30 && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                            خطة 40 يوم
+                            خطة 30 يوم
                           </span>
                         )}
 

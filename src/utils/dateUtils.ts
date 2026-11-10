@@ -104,6 +104,37 @@ export function addBusinessDays(startDate: Date | string, daysToAdd: number): Da
   return currentDate;
 }
 
+/** `date` plus whole months, at noon. A day the target month lacks becomes its last day (Jan 31 + 1 → Feb 28). */
+export function addMonthsKeepingDay(date: Date, months: number): Date {
+  const lastDayOfTarget = new Date(date.getFullYear(), date.getMonth() + months + 1, 0).getDate();
+  return new Date(date.getFullYear(), date.getMonth() + months, Math.min(date.getDate(), lastDayOfTarget), 12, 0, 0);
+}
+
+/** The date itself, or the following Sunday when it falls on the Friday / Saturday weekend. */
+export function toWorkingDay(date: Date): Date {
+  const skip = date.getDay() === 5 ? 2 : date.getDay() === 6 ? 1 : 0;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + skip, 12, 0, 0);
+}
+
+/**
+ * Every Thursday (YYYY-MM-DD) of one contract month, counted from 0. A Thursday on the first day
+ * counts; a month ends when the next one begins, and the contract's last day belongs to the last month.
+ */
+export function getThursdaysOfContractMonth(startDate: string, month: number, totalMonths: number): string[] {
+  const start = parseDate(startDate) || new Date();
+  const from = addMonthsKeepingDay(start, month);
+  const to = addMonthsKeepingDay(start, month + 1);
+  const includeLastDay = month === totalMonths - 1;
+
+  const thursdays: string[] = [];
+  const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + ((4 - from.getDay() + 7) % 7), 12, 0, 0);
+  while (day < to || (includeLastDay && day.getTime() === to.getTime())) {
+    thursdays.push(formatDateToYYYYMMDD(day));
+    day.setDate(day.getDate() + 7);
+  }
+  return thursdays;
+}
+
 // 2. دالة لحساب يوم الخميس الخاص بأسبوع معين بناءً على تاريخ بداية العميل
 export const getThursdayOfWeek = (startDate: Date | string, weekNumber: number): Date => {
   const date = typeof startDate === 'string' 
@@ -112,14 +143,9 @@ export const getThursdayOfWeek = (startDate: Date | string, weekNumber: number):
   
   const currentDay = date.getDay(); // 0 إلى 6
   
-  // حساب عدد الأيام للوصول لأول يوم خميس بعد تاريخ البداية
+  // حساب عدد الأيام للوصول لأول يوم خميس من تاريخ البداية (لو البداية خميس يبقى نفس اليوم)
   // يوم الخميس رقمه 4 في كائن Date
-  let daysUntilFirstThursday = (4 - currentDay + 7) % 7;
-  
-  // إذا كان العميل بدأ الجمعة أو السبت، يتم احتساب الخميس القادم من الأسبوع الجديد
-  if (currentDay === 5 || currentDay === 6) {
-    daysUntilFirstThursday = (4 - currentDay + 7) % 7 + 7;
-  }
+  const daysUntilFirstThursday = (4 - currentDay + 7) % 7;
 
   // إضافة الأيام للوصول لخميس الأسبوع الأول، ثم إضافة 7 أيام لكل أسبوع إضافي
   const targetThursday = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
@@ -173,11 +199,8 @@ export const generateWeeklyReports = (clientStartDate: string, clientEndDate: st
   // تحديد يوم الخميس القادم
   let current = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12, 0, 0);
   const currentDay = current.getDay(); 
-  let daysToFirstThursday = (4 - currentDay + 7) % 7;
-  if (currentDay === 5 || currentDay === 6) {
-    daysToFirstThursday = (4 - currentDay + 7) % 7 + 7;
-  }
-  
+  const daysToFirstThursday = (4 - currentDay + 7) % 7;
+
   current.setDate(current.getDate() + daysToFirstThursday);
 
   let reportCounter = 1; // العداد هيفضل يكمل ومش هيصفر أبداً
@@ -268,6 +291,29 @@ export function getNextThursday(startDateStr: string): string {
   }
   const localDate = new Date(current.getTime() - (current.getTimezoneOffset() * 60000));
   return localDate.toISOString().split('T')[0];
+}
+
+type ContractFields = Pick<Client, 'startDate' | 'durationMonths' | 'economyFullPackageMonths' | 'economyMediaMonths'> &
+  Partial<Pick<Client, 'accumulatedHoldDays'>>;
+
+// The client form saves an economy contract's total months (full package + media) as durationMonths.
+const contractMonths = (c: ContractFields) =>
+  Number(c.durationMonths) || (Number(c.economyFullPackageMonths) || 0) + (Number(c.economyMediaMonths) || 0);
+
+/** Contract end (YYYY-MM-DD): start date + the contract's months + the days already spent on hold. */
+export function getContractEndDate(c: ContractFields): string {
+  const end = addMonthsKeepingDay(parseDate(c.startDate) || new Date(), contractMonths(c));
+  end.setDate(end.getDate() + (Number(c.accumulatedHoldDays) || 0));
+  return formatDateToYYYYMMDD(end);
+}
+
+/** The end date older versions stored: 10 extra days, and Jan 31 + 1 month rolling into March. */
+export function getLegacyContractEndDate(c: ContractFields): string | null {
+  const start = parseDate(c.startDate);
+  if (!start) return null;
+  const end = new Date(start.getFullYear(), start.getMonth() + contractMonths(c), start.getDate(), 12, 0, 0);
+  end.setDate(end.getDate() + 10 + (Number(c.accumulatedHoldDays) || 0));
+  return formatDateToYYYYMMDD(end);
 }
 
 /**

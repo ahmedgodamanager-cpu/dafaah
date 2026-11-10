@@ -14,13 +14,14 @@ import {
   deleteField,
   arrayUnion,
   DocumentReference,
+  getDocFromServer,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Client, TaskItem, DailyActivation, AppNotification, ConnectionStatus, ClientActivity } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType, notifyWriteError, isPermissionError } from '../utils/firebaseUtils';
 import { INITIAL_CLIENTS, syncClientTasksWithNewMatrix, createDefaultCoreTasks } from '../data/initialClients';
-import { evaluateClientCaseStatus, addBusinessDays, getTodayStr, toLocalDateStr, isPlausibleDateStr } from '../utils/dateUtils';
+import { evaluateClientCaseStatus, addBusinessDays, getTodayStr, toLocalDateStr, isPlausibleDateStr, getContractEndDate, getLegacyContractEndDate } from '../utils/dateUtils';
 import { isUserSuspended, isManagerUser } from '../utils/userStatusUtils';
 import {
   normalizeClientDoc,
@@ -187,6 +188,7 @@ export const useFirestoreData = () => {
   /** The client list has come from the server in this session (not only from this browser's copy). */
   const clientsSyncedRef = useRef(false);
   const hasMigratedRamahRef = useRef(false);
+  const hasFixedContractEndsRef = useRef(false);
   const hasSeededR1Ref = useRef(false);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -582,6 +584,25 @@ export const useFirestoreData = () => {
             if (!rawComp || rawComp === 'AL - Ahly' || rawComp === 'SYT' || rawComp === 'Herak') {
               updateDoc(doc(db, 'clients', d.id), { companyName: 'رمّاح - Ramah' }).catch(() => {});
             }
+          });
+        }
+
+        // Contracts saved while the end date still got 10 extra days: move it back to start + months.
+        // Only an end date that matches the old calculation exactly is changed, so dates set by
+        // hand stay as they are. Each match is re-read from the server first, so a stale copy
+        // kept in this browser can't drive the write.
+        if (!hasFixedContractEndsRef.current && (user?.email === 'ahmedgoda.manager@gmail.com' || canSeeAll)) {
+          hasFixedContractEndsRef.current = true;
+          const hasLegacyEnd = (client: Client | null | undefined): client is Client =>
+            !!client?.endDate && client.endDate === getLegacyContractEndDate(client);
+          snapshot.docs.forEach(d => {
+            if (!hasLegacyEnd(src.docs[d.id])) return;
+            getDocFromServer(d.ref)
+              .then(fresh => {
+                const client = fresh.exists() ? normalizeClientDoc(fresh.data(), d.id) : null;
+                if (hasLegacyEnd(client)) return updateDoc(d.ref, { endDate: getContractEndDate(client) });
+              })
+              .catch(() => {});
           });
         }
 
