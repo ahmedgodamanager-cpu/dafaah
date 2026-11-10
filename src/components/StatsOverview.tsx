@@ -97,11 +97,11 @@ export const StatsOverview: React.FC<StatsOverviewProps> = React.memo(({
     };
   }, [clients]);
 
-  // Calculate clients in their first 30 days
-  const first30DaysClients = useMemo(() => {
+  // Calculate clients in their first 40 days
+  const first40DaysClients = useMemo(() => {
     return clients.filter(c => {
       const elapsedContractDaysSinceStart = c.startDate ? -getDaysDifference(c.startDate) : -1;
-      return elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
+      return elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
     });
   }, [clients]);
 
@@ -312,17 +312,17 @@ export const StatsOverview: React.FC<StatsOverviewProps> = React.memo(({
         </div>
       )}
 
-      {/* First 30 Days Callout */}
-      {first30DaysClients.length > 0 && (
+      {/* First 40 Days Callout */}
+      {first40DaysClients.length > 0 && (
         <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 p-4 sm:p-5 rounded-xl border border-amber-200/60 dark:border-amber-800/40 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in duration-200 print:hidden">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-xl shadow-xs">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">مرحلة الشهر الأول (30 يوم)</h4>
+              <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">مرحلة الشهر الأول (40 يوم)</h4>
               <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
-                يوجد <strong className="font-extrabold mx-1">{first30DaysClients.length}</strong> عملاء حالياً ضمن أول 30 يوم ويحتاجون لمتابعة خاصة
+                يوجد <strong className="font-extrabold mx-1">{first40DaysClients.length}</strong> عملاء حالياً ضمن أول 40 يوم ويحتاجون لمتابعة خاصة
               </p>
             </div>
           </div>
@@ -559,7 +559,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = React.memo(({
         isOpen={sectionModalState.isOpen}
         onClose={handleCloseSectionModal}
         type={sectionModalState.type}
-        clients={first30DaysClients}
+        clients={first40DaysClients}
         onSelectClient={onSelectClient}
       />
     

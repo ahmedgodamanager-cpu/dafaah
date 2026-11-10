@@ -438,7 +438,34 @@ export const MonthlyReportsView: React.FC<MonthlyReportsViewProps> = ({
                 className="relative overflow-hidden flex flex-col p-5 rounded-2xl border bg-slate-50 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700/80 text-right transition-all hover:shadow-md"
               >
                 <div className="flex items-center justify-between w-full mb-4">
-                  {cName === 'AL - Ahly' ? (
+                  {cName === 'رمّاح - Ramah' ? (
+                    <div className="flex items-center justify-center h-14 w-20 rounded-2xl bg-white/95 dark:bg-slate-900 overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm p-1">
+                      <img
+                        src="/companies/ramah-light.png"
+                        alt="رمّاح - Ramah"
+                        className="dark:hidden w-full h-full object-contain filter drop-shadow-xs"
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (t.dataset.fallback !== '1') {
+                            t.dataset.fallback = '1';
+                            t.src = 'https://i.ibb.co/0pPzF0vq/Ramah-Agency-Arabic-Calligraphy-Logo.png';
+                          }
+                        }}
+                      />
+                      <img
+                        src="/companies/ramah-dark.png"
+                        alt="رمّاح - Ramah"
+                        className="hidden dark:block w-full h-full object-contain filter drop-shadow-xs"
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (t.dataset.fallback !== '1') {
+                            t.dataset.fallback = '1';
+                            t.src = 'https://i.ibb.co/q3DZckq2/Ramah-Agency-White-and-Red-Logo.png';
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : cName === 'AL - Ahly' ? (
                     <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-white dark:bg-transparent overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
                       <img src="https://i.ibb.co/d0KGfwr0/Chat-GPT-Image-Aug-8-2026-05-18-21-PM.png" alt="AL - Ahly" className="dark:hidden w-full h-full object-contain scale-90" />
                       <img src="https://i.ibb.co/RGwxNcLQ/image.png" alt="AL - Ahly" className="hidden dark:block w-full h-full object-contain scale-90" />

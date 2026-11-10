@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, PlusCircle, Users, Calendar, Phone, Link2, FileText, CheckSquare, Building2, Folder, ExternalLink, Crown } from 'lucide-react';
 import { Client, TaskItem, CompanyType } from '../types';
 import { createDefaultCoreTasks, COMPANY_OPTIONS, DRIVE_LINKS } from '../data/initialClients';
-import { addMonthsKeepingDay, parseDate, formatDateToYYYYMMDD, getTodayStr } from '../utils/dateUtils';
+import { parseDate, formatDateToYYYYMMDD, getTodayStr } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { checkClientDuplication } from '../utils/clientValidation';
 import { isAdminUser } from '../utils/userStatusUtils';
@@ -57,7 +57,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
   const [code, setCode] = useState(`SCHTE${Math.floor(1000 + Math.random() * 9000)}`);
   const [clientName, setClientName] = useState('');
-  const [companyName, setCompanyName] = useState<CompanyType>('AL - Ahly');
+  const [companyName, setCompanyName] = useState<CompanyType>('رمّاح - Ramah');
   const [clientNumber, setClientNumber] = useState('');
   const [groupName, setGroupName] = useState('');
   const [isVip, setIsVip] = useState(false);
@@ -86,7 +86,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   const resetToDefaults = () => {
     setCode(`SCHTE${Math.floor(1000 + Math.random() * 9000)}`);
     setClientName('');
-    setCompanyName('AL - Ahly');
+    setCompanyName('رمّاح - Ramah');
     setClientNumber('');
     setGroupName('');
     setIsVip(false);
@@ -254,10 +254,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
     const effectiveDurationMonths = contract === 'الاقتصادية' ? economyFullPackageMonths + economyMediaMonths : Number(durationMonths);
 
-    // Calculate end date based on duration (+ the days the client already spent on hold: those
-    // extend the contract, so re-calculating must not take them away again)
+    // Calculate end date based on duration (and any days the client already
+    // spent on hold: those extend the contract, so re-calculating must not take them away again)
     const sDate = parseDate(startDate) || new Date();
-    const eDate = addMonthsKeepingDay(sDate, effectiveDurationMonths);
+    const eDate = new Date(sDate.getFullYear(), sDate.getMonth() + effectiveDurationMonths, sDate.getDate(), 12, 0, 0);
     eDate.setDate(eDate.getDate() + (Number(clientToEdit?.accumulatedHoldDays) || 0));
     const endDateStr = formatDateToYYYYMMDD(eDate);
 
@@ -465,7 +465,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   {/* A stored value that is empty or no longer in the list is shown as it is, instead of
                       silently turning into the first company when the form is saved. */}
                   {!companyName && <option value="">بدون شركة</option>}
-                  {companyName && !COMPANY_OPTIONS.includes(companyName) && (
+                  {companyName && !(COMPANY_OPTIONS as readonly string[]).includes(companyName) && (
                     <option value={companyName}>{companyName}</option>
                   )}
                   {COMPANY_OPTIONS.map((c) => (

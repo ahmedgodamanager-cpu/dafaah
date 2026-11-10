@@ -59,6 +59,7 @@ interface CompanyAccordionSectionProps {
   onDeleteClient: (id: string) => void;
   onArchiveToggle: (client: Client) => void;
   onAddTask: (id: string) => void;
+  onUpdateClient?: (client: Partial<Client> & { id: string }) => Promise<boolean>;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDragEnd: (e: React.DragEvent) => void;
@@ -79,6 +80,7 @@ const CompanyAccordionSection = React.memo<CompanyAccordionSectionProps>(({
   onDeleteClient,
   onArchiveToggle,
   onAddTask,
+  onUpdateClient,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -97,7 +99,34 @@ const CompanyAccordionSection = React.memo<CompanyAccordionSectionProps>(({
         className="w-full flex items-center justify-between py-2.5 sm:py-2 px-3 sm:px-4 bg-[var(--surface-hover)]/80 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-right touch-manipulation min-h-[48px] print:bg-gray-100 print:border-b print:border-gray-300"
       >
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          {company === 'AL - Ahly' ? (
+          {company === 'رمّاح - Ramah' ? (
+            <div className="flex items-center justify-center h-11 sm:h-12 w-16 sm:w-20 rounded-xl bg-white/95 dark:bg-slate-900 overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-sm shrink-0 p-1">
+              <img
+                src="/companies/ramah-light.png"
+                alt="رمّاح - Ramah"
+                className="dark:hidden w-full h-full object-contain filter drop-shadow-xs"
+                onError={(e) => {
+                  const t = e.currentTarget;
+                  if (t.dataset.fallback !== '1') {
+                    t.dataset.fallback = '1';
+                    t.src = 'https://i.ibb.co/0pPzF0vq/Ramah-Agency-Arabic-Calligraphy-Logo.png';
+                  }
+                }}
+              />
+              <img
+                src="/companies/ramah-dark.png"
+                alt="رمّاح - Ramah"
+                className="hidden dark:block w-full h-full object-contain filter drop-shadow-xs"
+                onError={(e) => {
+                  const t = e.currentTarget;
+                  if (t.dataset.fallback !== '1') {
+                    t.dataset.fallback = '1';
+                    t.src = 'https://i.ibb.co/q3DZckq2/Ramah-Agency-White-and-Red-Logo.png';
+                  }
+                }}
+              />
+            </div>
+          ) : company === 'AL - Ahly' ? (
             <div className="flex items-center justify-center w-[36px] h-[48px] rounded-lg bg-white dark:bg-transparent overflow-hidden border border-slate-200 dark:border-transparent dark:shadow-none shadow-sm shrink-0">
               <img src="https://i.ibb.co/d0KGfwr0/Chat-GPT-Image-Aug-8-2026-05-18-21-PM.png" alt="AL - Ahly" className="dark:hidden w-full h-full object-contain scale-90" />
               <img src="https://i.ibb.co/RGwxNcLQ/image.png" alt="AL - Ahly" className="hidden dark:block w-full h-full object-contain scale-90" />
@@ -151,6 +180,7 @@ const CompanyAccordionSection = React.memo<CompanyAccordionSectionProps>(({
                   onDelete={onDeleteClient}
                   onArchiveToggle={onArchiveToggle}
                   onAddTask={onAddTask}
+                  onUpdateClient={onUpdateClient}
                   draggable={dashboardConfig.enableDragAndDrop}
                   onClientDragStart={onDragStart}
                   onClientDragOver={onDragOver}
@@ -1640,6 +1670,7 @@ export default function App() {
                       onDeleteClient={handleSetClientToDelete}
                       onArchiveToggle={handleArchiveToggle}
                       onAddTask={handleOpenAddTask}
+                      onUpdateClient={handleUpdateClient}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}

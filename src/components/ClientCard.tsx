@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Folder, 
   MessageSquare, 
@@ -10,14 +10,18 @@ import {
   Trash2, 
   Archive, 
   ArchiveRestore,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Key
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { Client, DashboardConfig } from '../types';
 import { getWhatsAppLink, getDaysDifference, getRemainingContractDays, formatDateArabic } from '../utils/dateUtils';
 import { usePortalLink } from '../context/PortalLinkContext';
 import { VipBadge } from './VipBadge';
 import { useAuth } from '../context/AuthContext';
+import { ClientCredentialsModal } from './ClientCredentialsModal';
 
 export interface ClientCardProps {
   client: Client;
@@ -30,6 +34,8 @@ export interface ClientCardProps {
   onArchiveToggle?: (client: Client) => void;
   onAddTask?: (clientId: string) => void;
   onTransfer?: (clientId: string) => void;
+  onManageCredentials?: (client: Client) => void;
+  onUpdateClient?: (client: Partial<Client> & { id: string }) => Promise<boolean>;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
@@ -53,6 +59,8 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
   onArchiveToggle,
   onAddTask,
   onTransfer,
+  onManageCredentials,
+  onUpdateClient,
   draggable = false,
   onDragStart,
   onDragOver,
@@ -153,9 +161,50 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
     };
   }, [client.tasks, client.caseStatus, client.holdStartDate]);
 
-  const waLink = useMemo(() => {
-    return getWhatsAppLink(client.clientNumber, `مرحباً ${client.clientName}، متابعة بخصوص عقد ${client.contract}`);
-  }, [client.clientNumber, client.clientName, client.contract]);
+  const overdueTasks = useMemo(() => {
+    const tasks = client.tasks || [];
+    let refDate = new Date();
+    if (client.caseStatus === 'hold' && client.holdStartDate) {
+      refDate = new Date(client.holdStartDate);
+    }
+    return tasks.filter(t => !t.completed && getDaysDifference(t.dueDate, refDate) < 0);
+  }, [client.tasks, client.caseStatus, client.holdStartDate]);
+
+  const waOverdueLink = useMemo(() => {
+    if (!client.clientNumber) return '#';
+    const overdueCount = overdueTasks.length;
+    let message = '';
+    
+    if (overdueCount > 0) {
+      const taskListPreview = overdueTasks
+        .slice(0, 5)
+        .map(t => `• ${t.title}${t.dueDate ? ` (موعد الاستحقاق: ${formatDateArabic(t.dueDate)})` : ''}`)
+        .join('\n');
+      const moreTasksText = overdueTasks.length > 5 ? `\n• و ${overdueTasks.length - 5} مهام أخرى...` : '';
+
+      message = `السلام عليكم ورحمة الله وبركاته،
+أهلاً بك أستاذ/ة ${client.clientName} 🌸
+
+نود إحاطتكم بخصوص متابعة سير العمل لمشروعكم (${client.companyName || 'رمّاح - Ramah'}):
+يوجد لدينا حالياً (${overdueCount}) ${overdueCount === 1 ? 'مهمة متأخرة تتطلب' : overdueCount === 2 ? 'مهمتان متأخرتان تتطلبان' : 'مهام متأخرة تتطلب'} المتابعة والاعتماد:
+
+${taskListPreview}${moreTasksText}
+
+يرجى التكرم بالاطلاع والمتابعة ليتسنى لفريق العمل مواصلة التنفيذ وفق الجدول المحدد.
+
+شاكرين ومقدرين حسن تعاونكم الدائم 🙏`;
+    } else {
+      message = `السلام عليكم ورحمة الله وبركاته،
+أهلاً بك أستاذ/ة ${client.clientName} 🌸
+
+نود إحاطتكم بخصوص متابعة سير العمل لمشروعكم (${client.companyName || 'رمّاح - Ramah'}):
+نحيطكم علماً بأن جميع مهام العمل تسير وفق الجدول الزمني المحدد دون أي تأخير، وفريق العمل مستمر في التنفيذ بأعلى جودة.
+
+شاكرين ومقدرين حسن تعاونكم الدائم 🙏`;
+    }
+
+    return getWhatsAppLink(client.clientNumber, message);
+  }, [client.clientNumber, client.clientName, client.companyName, overdueTasks]);
 
   const contractDaysDiff = useMemo(() => {
     return getRemainingContractDays(client);
@@ -168,7 +217,47 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
     return client.startDate ? -getDaysDifference(client.startDate) : -1;
   }, [client.startDate]);
 
-  const isFirstMonth = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
+  const isFirstMonth = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
+
+  // Credentials summary
+  const creds = client.credentials;
+  const socialCount = creds?.socialAccounts?.length || 0;
+  const adCount = creds?.adAccessAccounts?.length || 0;
+  const sallaStores = creds?.sallaAccounts || [];
+  const sallaCount = sallaStores.length;
+  const sallaAccessCount = sallaStores.reduce((acc, s) => acc + (s.accessEmails?.length || 0), 0);
+  const hasGmail = !!(creds?.gmailEmail || client.gmailEmail);
+  const totalCredsCount = socialCount + adCount + sallaCount + (hasGmail ? 1 : 0);
+  const hasCredentials = totalCredsCount > 0 || !!creds?.notes;
+
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+
+  const handleCredentialsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onManageCredentials) {
+      onManageCredentials(client);
+    } else {
+      setIsCredentialsModalOpen(true);
+    }
+  }, [onManageCredentials, client]);
+
+  const handleSaveCredentials = useCallback(async (updated: Partial<Client> & { id: string }) => {
+    if (onUpdateClient) {
+      return onUpdateClient(updated);
+    }
+    try {
+      const clientDocRef = doc(db, 'clients', client.id);
+      await updateDoc(clientDocRef, {
+        credentials: updated.credentials,
+        gmailEmail: updated.gmailEmail || '',
+        lastUpdated: new Date().toISOString()
+      });
+      return true;
+    } catch (err) {
+      console.error('Error updating credentials:', err);
+      return false;
+    }
+  }, [onUpdateClient, client.id]);
 
   // Memoized action handlers
   const handleCardClick = useCallback(() => {
@@ -182,7 +271,10 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
 
   const handleWhatsAppClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!client.clientNumber) e.preventDefault();
+    if (!client.clientNumber) {
+      e.preventDefault();
+      toast.error('لا يوجد رقم هاتف مسجل لهذا العميل');
+    }
   }, [client.clientNumber]);
 
   const handleAddTaskClick = useCallback((e: React.MouseEvent) => {
@@ -361,6 +453,55 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
             </span>
           )}
         </div>
+
+        {/* Credentials & Access Accounts Quick Badge */}
+        {hasCredentials ? (
+          <div 
+            onClick={handleCredentialsClick}
+            className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200/70 dark:border-purple-900/30 text-[11px] font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100/80 dark:hover:bg-purple-900/40 transition-all cursor-pointer group/creds shadow-2xs"
+            title="انقر لعرض وإدارة حسابات السوشيال ميديا والباسوردات وأكسيس الإعلانات"
+          >
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Key className="w-3.5 h-3.5 text-[#593BFE] dark:text-purple-400 group-hover/creds:rotate-12 transition-transform shrink-0" />
+              <span className="font-bold text-slate-800 dark:text-slate-200">بيانات الحسابات:</span>
+              <div className="flex items-center gap-1 text-[10px] font-mono font-bold">
+                {sallaCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                    سلة ({sallaCount}{sallaAccessCount > 0 ? ` · ${sallaAccessCount} أكسيس` : ''})
+                  </span>
+                )}
+                {hasGmail && (
+                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
+                    Gmail
+                  </span>
+                )}
+                {socialCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
+                    {socialCount} سوشيال
+                  </span>
+                )}
+                {adCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-white dark:bg-[#18181B] border border-purple-200 dark:border-purple-800 text-slate-700 dark:text-slate-300">
+                    {adCount} إعلانات
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] text-[#593BFE] dark:text-purple-400 font-bold underline group-hover/creds:no-underline shrink-0">
+              عرض
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleCredentialsClick}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 hover:text-[#593BFE] dark:hover:text-purple-400 transition-colors cursor-pointer w-fit py-0.5"
+            title="إضافة حسابات السوشيال ميديا والإعلانات والـ Gmail"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>+ إضافة حسابات السوشيال والأكسيس</span>
+          </button>
+        )}
       </div>
 
       {/* Dates & Duration (Flexbox Row) */}
@@ -396,9 +537,22 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
           <div className="flex items-center gap-1.5">
             <span className="text-gray-800 dark:text-gray-100 font-medium">إنجاز المهام</span>
             {stats.delayedTasks > 0 ? (
-              <span className="text-red-500 dark:text-rose-400 font-bold print:text-rose-600 text-[11px] font-mono">
-                ({stats.delayedTasks} متأخر)
-              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-red-500 dark:text-rose-400 font-bold print:text-rose-600 text-[11px] font-mono">
+                  ({stats.delayedTasks} متأخر)
+                </span>
+                <a
+                  href={client.clientNumber ? waOverdueLink : '#'}
+                  target={client.clientNumber ? '_blank' : '_self'}
+                  rel="noopener noreferrer"
+                  onClick={handleWhatsAppClick}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-2xs group/wa"
+                  title="فتح محادثة واتساب مع رسالة جاهزة بالمهام المتأخرة"
+                >
+                  <MessageSquare className="w-3 h-3 text-emerald-600 dark:text-emerald-400 group-hover/wa:scale-110 transition-transform" />
+                  <span>تنبيه واتساب</span>
+                </a>
+              </div>
             ) : stats.totalTasks > 0 && stats.progressPercent === 100 ? (
               <span className="text-[#593BFE] font-bold print:text-emerald-700 text-[11px]">
                 (مكتمل ✨)
@@ -444,19 +598,56 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
           </a>
 
           <a
-            href={client.clientNumber ? waLink : '#'}
+            href={client.clientNumber ? waOverdueLink : '#'}
             target={client.clientNumber ? '_blank' : '_self'}
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            className={`p-2 rounded-xl transition-colors ${
+            className={`p-2 rounded-xl transition-colors relative ${
               client.clientNumber
-                ? 'text-gray-400 hover:text-[#593BFE] hover:bg-purple-50 dark:hover:bg-[#593BFE]/20 border border-gray-200 dark:border-gray-800'
+                ? stats.delayedTasks > 0
+                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs'
+                  : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border border-gray-200 dark:border-gray-800'
                 : 'text-gray-300 dark:text-gray-600 bg-gray-100 dark:bg-[#1A1A1A] cursor-not-allowed border border-gray-200 dark:border-gray-800'
             }`}
-            title="تواصل عبر الواتساب"
+            title={
+              !client.clientNumber
+                ? 'لا يوجد رقم هاتف مسجل لهذا العميل'
+                : stats.delayedTasks > 0
+                ? `واتساب: إرسال تنبيه بـ (${stats.delayedTasks}) مهام متأخرة`
+                : 'واتساب: إرسال رسالة متابعة حالة المهام'
+            }
           >
             <MessageSquare className="w-4 h-4" />
+            {stats.delayedTasks > 0 && client.clientNumber && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              </span>
+            )}
           </a>
+
+          {/* Manage Credentials (Social & Ad Access) Button */}
+          <button
+            type="button"
+            onClick={handleCredentialsClick}
+            className={`p-2 rounded-xl transition-colors relative cursor-pointer ${
+              hasCredentials
+                ? 'text-[#593BFE] dark:text-indigo-400 bg-purple-50/80 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800/60 shadow-2xs'
+                : 'text-gray-400 hover:text-[#593BFE] hover:bg-purple-50 dark:hover:bg-[#593BFE]/20 border border-gray-200 dark:border-gray-800'
+            }`}
+            title={
+              hasCredentials
+                ? `بيانات الحسابات والوصول (${totalCredsCount} مسجل)`
+                : 'إضافة حسابات السوشيال ميديا والإعلانات والـ Gmail'
+            }
+          >
+            <Key className="w-4 h-4" />
+            {hasCredentials && (
+              <span className="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 rounded-full bg-[#593BFE] text-white text-[9px] font-bold font-mono flex items-center justify-center shadow-xs">
+                {totalCredsCount}
+              </span>
+            )}
+          </button>
 
           {/* Copy Client Portal Link Button */}
           <button
@@ -539,6 +730,15 @@ export const ClientCard: React.FC<ClientCardProps> = React.memo(({
             {new Date(client.lastUpdated).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
+      )}
+
+      {isCredentialsModalOpen && (
+        <ClientCredentialsModal
+          isOpen={isCredentialsModalOpen}
+          onClose={() => setIsCredentialsModalOpen(false)}
+          client={client}
+          onSave={handleSaveCredentials}
+        />
       )}
     </div>
   );

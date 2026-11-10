@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Client } from '../types';
 import { Building2, Download, Printer, FileDown , Search, ExternalLink, MessageSquare, Briefcase, Calendar as CalendarIcon, Clock, Link as LinkIcon, FileText, ArrowLeft, Phone, User as UserIcon, ArrowRightLeft, Loader2, X, Copy, Check, Eye } from 'lucide-react';
@@ -21,7 +21,7 @@ export function OperationsView({ clients, onSelectClient }: OperationsViewProps)
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [systemUsers, setSystemUsers] = useState<{id: string, name: string, email: string}[]>([]);
-  const tableRef = React.useRef<HTMLTableElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   // Transfer State
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -60,9 +60,12 @@ export function OperationsView({ clients, onSelectClient }: OperationsViewProps)
     if (!clientToTransfer || !transferTargetUserId) return;
     setIsTransferring(true);
     try {
+      const targetUser = systemUsers.find(u => u.id === transferTargetUserId);
+      const targetName = targetUser?.name || userNames[transferTargetUserId] || '';
       const clientRef = doc(db, 'clients', clientToTransfer.id);
       await updateDoc(clientRef, {
-        createdBy: transferTargetUserId
+        createdBy: transferTargetUserId,
+        ...(targetName ? { ownerName: targetName } : {})
       });
       
       const currentUserName = user?.displayName || user?.email?.split('@')[0] || 'الإدارة';
@@ -96,7 +99,7 @@ export function OperationsView({ clients, onSelectClient }: OperationsViewProps)
     (client.groupName && client.groupName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const groupedClients = React.useMemo<Record<string, Client[]>>(() => {
+  const groupedClients = useMemo<Record<string, Client[]>>(() => {
     if (!isAdmin) return { 'all': filteredClients };
     
     const groups: Record<string, Client[]> = {};

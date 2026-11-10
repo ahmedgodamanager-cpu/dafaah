@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Client, TaskCategory, TaskItem } from '../types';
+import { COMPANY_OPTIONS } from '../data/initialClients';
 import { getDaysDifference, formatDateArabic, parseDate, getTodayStr, formatDateToYYYYMMDD } from '../utils/dateUtils';
 import {
   Printer,
@@ -334,9 +335,9 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
               className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium outline-none"
             >
               <option value="all">كافة الشركات</option>
-              <option value="AL - Ahly">AL - Ahly</option>
-              <option value="SYT">SYT</option>
-              <option value="Herak">Herak</option>
+              {COMPANY_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
 

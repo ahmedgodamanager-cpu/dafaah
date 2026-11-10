@@ -56,7 +56,7 @@ export const ClientTimelineSection: React.FC<ClientTimelineSectionProps> = ({ cl
         type: 'contract_start',
         title: 'بداية تفعيل العقد الرسمي',
         categoryOrPlatform: client.contract,
-        notesOrDetails: `بداية التعاقد لمدة ${client.durationMonths} ${client.durationMonths === 1 ? 'شهر' : 'أشهر'} (+ 10 أيام) (${client.companyName || 'عام'})`,
+        notesOrDetails: `بداية التعاقد لمدة ${client.durationMonths} ${client.durationMonths === 1 ? 'شهر' : 'أشهر'} (${client.companyName || 'عام'})`,
         status: 'info',
         statusLabel: 'محطة العقد'
       });

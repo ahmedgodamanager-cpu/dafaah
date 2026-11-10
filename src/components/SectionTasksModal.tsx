@@ -43,8 +43,8 @@ export const SectionTasksModal: React.FC<SectionTasksModalProps> = ({ isOpen, on
 
   const getHeaderInfo = () => {
     switch (type) {
-      case 'completed': return { title: 'المهام المنجزة', desc: 'مهام تم إنجازها (أول 30 يوم)', icon: <CheckCircle2 className="w-5 h-5"/>, bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50' };
-      case 'delayed': return { title: 'المهام المتأخرة', desc: 'مهام تجاوزت وقت التسليم (أول 30 يوم)', icon: <AlertTriangle className="w-5 h-5"/>, bg: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/50' };
+      case 'completed': return { title: 'المهام المنجزة', desc: 'مهام تم إنجازها (أول 40 يوم)', icon: <CheckCircle2 className="w-5 h-5"/>, bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50' };
+      case 'delayed': return { title: 'المهام المتأخرة', desc: 'مهام تجاوزت وقت التسليم (أول 40 يوم)', icon: <AlertTriangle className="w-5 h-5"/>, bg: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/50' };
       case 'upcoming': return { title: 'المهام القريبة', desc: 'مهام قريبة جداً (خلال 3 أيام)', icon: <Clock className="w-5 h-5"/>, bg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50' };
     }
   };

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Client, DashboardConfig } from '../types';
-import { CheckSquare, Clock, Trash2, Archive, ArchiveRestore, Edit3, ArrowRightLeft, MoreVertical, Eye } from 'lucide-react';
-import { getDaysDifference, getRemainingContractDays } from '../utils/dateUtils';
+import { CheckSquare, Clock, Trash2, Archive, ArchiveRestore, Edit3, ArrowRightLeft, MoreVertical, Eye, MessageSquare, Key } from 'lucide-react';
+import { getDaysDifference, getRemainingContractDays, getWhatsAppLink, formatDateArabic } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { ClientCredentialsModal } from './ClientCredentialsModal';
 
 interface ClientListTableProps {
   clients: Client[];
@@ -12,6 +16,7 @@ interface ClientListTableProps {
   onDelete?: (id: string) => void;
   onArchiveToggle?: (client: Client) => void;
   onAddTask: (id: string) => void;
+  onUpdateClient?: (client: Partial<Client> & { id: string }) => Promise<boolean>;
   config: DashboardConfig;
   usersMap?: Record<string, string>;
 }
@@ -95,7 +100,7 @@ const ClientTableRow = React.memo<ClientTableRowProps>(({
     return client.startDate ? -getDaysDifference(client.startDate) : -1;
   }, [client.startDate]);
 
-  const isFirst30Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
+  const isFirst40Days = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
 
   const { profile } = useAuth();
   const canShowAssigned = profile?.role === 'admin' || profile?.role === 'account_manager_head';
@@ -143,9 +148,9 @@ const ClientTableRow = React.memo<ClientTableRowProps>(({
           >
             {client.clientName}
           </button>
-          {isFirst30Days && (
+          {isFirst40Days && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 shadow-xs">
-              ⭐ الشهر الأول (30 يوم)
+              ⭐ الشهر الأول (40 يوم)
             </span>
           )}
         </div>
@@ -238,6 +243,7 @@ export const ClientListTable: React.FC<ClientListTableProps> = React.memo(({
   onDelete, 
   onArchiveToggle, 
   onAddTask, 
+  onUpdateClient,
   config,
   usersMap,
 }) => {
@@ -247,6 +253,7 @@ export const ClientListTable: React.FC<ClientListTableProps> = React.memo(({
     top: number;
     left: number;
   } | null>(null);
+  const [credentialsClient, setCredentialsClient] = useState<Client | null>(null);
 
   // Close dropdown on outside click, window resize, or table scroll
   useEffect(() => {
@@ -399,6 +406,56 @@ export const ClientListTable: React.FC<ClientListTableProps> = React.memo(({
               <span>إضافة مهمة جديدة</span>
             </button>
 
+            {/* WhatsApp Overdue Reminder Option */}
+            <button
+              type="button"
+              onClick={() => {
+                const c = activeMenu.client;
+                if (!c.clientNumber) {
+                  toast.error('لا يوجد رقم هاتف مسجل لهذا العميل');
+                  return;
+                }
+                const tasks = c.tasks || [];
+                let refDate = new Date();
+                if (c.caseStatus === 'hold' && c.holdStartDate) {
+                  refDate = new Date(c.holdStartDate);
+                }
+                const overdueTasks = tasks.filter(t => !t.completed && getDaysDifference(t.dueDate, refDate) < 0);
+                const overdueCount = overdueTasks.length;
+                let message = '';
+                if (overdueCount > 0) {
+                  const taskListPreview = overdueTasks
+                    .slice(0, 5)
+                    .map(t => `• ${t.title}${t.dueDate ? ` (موعد الاستحقاق: ${formatDateArabic(t.dueDate)})` : ''}`)
+                    .join('\n');
+                  const moreTasksText = overdueTasks.length > 5 ? `\n• و ${overdueTasks.length - 5} مهام أخرى...` : '';
+                  message = `السلام عليكم ورحمة الله وبركاته،\nأهلاً بك أستاذ/ة ${c.clientName} 🌸\n\nنود إحاطتكم بخصوص متابعة سير العمل لمشروعكم (${c.companyName || 'رمّاح - Ramah'}):\nيوجد لدينا حالياً (${overdueCount}) ${overdueCount === 1 ? 'مهمة متأخرة تتطلب' : overdueCount === 2 ? 'مهمتان متأخرتان تتطلبان' : 'مهام متأخرة تتطلب'} المتابعة والاعتماد:\n\n${taskListPreview}${moreTasksText}\n\nيرجى التكرم بالاطلاع والمتابعة ليتسنى لفريق العمل مواصلة التنفيذ وفق الجدول المحدد.\n\nشاكرين ومقدرين حسن تعاونكم الدائم 🙏`;
+                } else {
+                  message = `السلام عليكم ورحمة الله وبركاته،\nأهلاً بك أستاذ/ة ${c.clientName} 🌸\n\nنود إحاطتكم بخصوص متابعة سير العمل لمشروعكم (${c.companyName || 'رمّاح - Ramah'}):\nنحيطكم علماً بأن جميع مهام العمل تسير وفق الجدول الزمني المحدد دون أي تأخير، وفريق العمل مستمر في التنفيذ بأعلى جودة.\n\nشاكرين ومقدرين حسن تعاونكم الدائم 🙏`;
+                }
+                const url = getWhatsAppLink(c.clientNumber, message);
+                window.open(url, '_blank', 'noopener,noreferrer');
+                setActiveMenu(null);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl transition-colors text-right cursor-pointer font-medium"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-500" />
+              <span>مراسلة واتساب (حالة المهام)</span>
+            </button>
+
+            {/* Social & Salla & Ad Access Credentials Option */}
+            <button
+              type="button"
+              onClick={() => {
+                setCredentialsClient(activeMenu.client);
+                setActiveMenu(null);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl transition-colors text-right cursor-pointer font-medium"
+            >
+              <Key className="w-4 h-4 text-[#593BFE]" />
+              <span>حسابات سلة والسوشيال والأكسيس</span>
+            </button>
+
             {/* Archive / Restore Option */}
             {onArchiveToggle && (
               <button
@@ -436,6 +493,31 @@ export const ClientListTable: React.FC<ClientListTableProps> = React.memo(({
           )}
         </div>,
         document.body
+      )}
+
+      {credentialsClient && (
+        <ClientCredentialsModal
+          isOpen={!!credentialsClient}
+          onClose={() => setCredentialsClient(null)}
+          client={credentialsClient}
+          onSave={async (updated) => {
+            if (onUpdateClient) {
+              const ok = await onUpdateClient(updated);
+              return ok;
+            }
+            try {
+              const ref = doc(db, 'clients', credentialsClient.id);
+              await updateDoc(ref, {
+                credentials: updated.credentials,
+                gmailEmail: updated.gmailEmail || '',
+                lastUpdated: new Date().toISOString()
+              });
+              return true;
+            } catch {
+              return false;
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { Client, CategoryInfo, TaskCategory, TaskItem } from '../types';
-import { addBusinessDays, addMonthsKeepingDay, formatSequentialReports, formatDateToYYYYMMDD, getThursdaysOfContractMonth, parseDate, toWorkingDay } from '../utils/dateUtils';
+import { addBusinessDays, getThursdayOfWeek, formatSequentialReports, formatDateToYYYYMMDD, parseDate } from '../utils/dateUtils';
 import { isMatrixTaskNumber, taskKey } from '../utils/taskKeys';
-import { addCalendarDays, shiftOpenTasks } from '../utils/holdUtils';
+import { shiftOpenTasks } from '../utils/holdUtils';
 
 export { generateWeeklyReports, generateClientTasks, getThursdayOfWeek, getArabicOrdinal, formatSequentialReports, processAndSortClientTasks, formatDateToYYYYMMDD, parseDate } from '../utils/dateUtils';
 
@@ -339,13 +339,6 @@ export function createDefaultCoreTasks(
     safeDuration = economyFullPackageMonths + economyMediaMonths;
   }
 
-  // A report covers its own week: from that Sunday, or from the first working day if that is later.
-  const firstWorkingDay = formatDateToYYYYMMDD(toWorkingDay(parseDate(startDate) || new Date()));
-  const reportStart = (due: string) => {
-    const sunday = addCalendarDays(due, -4);
-    return sunday < firstWorkingDay ? firstWorkingDay : sunday;
-  };
-
   for (let month = 0; month < safeDuration; month++) {
     let currentMonthContract = contractType;
     if (contractType === 'الاقتصادية') {
@@ -411,10 +404,17 @@ export function createDefaultCoreTasks(
       filteredTasks = getFilteredTasksForContract(currentMonthContract);
     }
 
-    // Each contract month starts on the contract's day of the month. Friday and Saturday are days
-    // off, so a month that would start on one of them starts on the following Sunday.
-    const monthStartDate = formatDateToYYYYMMDD(toWorkingDay(addMonthsKeepingDay(parseDate(startDate) || new Date(), month)));
-    const monthThursdays = getThursdaysOfContractMonth(startDate, month, safeDuration);
+    // Baseline month start date: Day 0 is strictly startDate (Work Start Date) for month 0
+    let monthStartDate: string;
+    if (month === 0) {
+      // Always store YYYY-MM-DD (a CSV import may give DD/MM/YYYY), and use the same
+      // "today" fallback as the later months when the start date is missing.
+      monthStartDate = formatDateToYYYYMMDD(parseDate(startDate) || new Date());
+    } else {
+      const parsedStart = parseDate(startDate) || new Date();
+      const nextMonth = new Date(parsedStart.getFullYear(), parsedStart.getMonth() + month, parsedStart.getDate(), 12, 0, 0);
+      monthStartDate = formatDateToYYYYMMDD(nextMonth);
+    }
 
     // Week boundaries calculated with addBusinessDays
     const d1 = 5;
@@ -461,6 +461,9 @@ export function createDefaultCoreTasks(
         if (t.taskNumber === 'W1-ACC-01') {
           // البريف: تسليم بعد يوم عمل من تاريخ بداية العمل
           dueDate = addBusinessDays(w1Start, 1);
+        } else if (t.title === 'التقرير الأسبوعي') {
+          const overallWeek = (month * 4) + 1;
+          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         } else {
           // مهام التأسيس للأسبوع الأول
           dueDate = addBusinessDays(w1Start, 4);
@@ -473,6 +476,9 @@ export function createDefaultCoreTasks(
           dueDate = w2PlanApprovalDue;
         } else if (t.title.includes('بلان')) {
           dueDate = addBusinessDays(w2Start, 2);
+        } else if (t.title === 'التقرير الأسبوعي') {
+          const overallWeek = (month * 4) + 2;
+          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
       } else if (t.week === 3) {
         taskStart = w3Start;
@@ -493,6 +499,9 @@ export function createDefaultCoreTasks(
         } else if (t.title.includes('اعتماد العميل فيديوهات') || t.title.includes('اعتماد العميل الفيديوهات')) {
           taskStart = w3VideoDeliveryDue;
           dueDate = w3VideoClientApprovalDue;
+        } else if (t.title === 'التقرير الأسبوعي') {
+          const overallWeek = (month * 4) + 3;
+          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
       } else if (t.week === 4) {
         taskStart = w4Start;
@@ -506,14 +515,13 @@ export function createDefaultCoreTasks(
         } else if (t.title === 'جدولة نشر الفيديوهات') {
           taskStart = w3VideoClientApprovalDue;
           dueDate = addBusinessDays(taskStart, 2);
+        } else if (t.title === 'التقرير الأسبوعي') {
+          const overallWeek = (month * 4) + 4;
+          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
+        } else if (t.title === 'التقرير الشهري الشامل') {
+          const overallWeek = (month * 4) + 4;
+          dueDate = formatDateToYYYYMMDD(getThursdayOfWeek(startDate, overallWeek));
         }
-      }
-
-      // Reports go out on Thursdays: the weekly ones on this month's Thursdays in order, the
-      // monthly one on its last Thursday.
-      if (t.title === 'التقرير الأسبوعي' || t.title === 'التقرير الشهري الشامل') {
-        dueDate = t.title === 'التقرير الأسبوعي' ? monthThursdays[t.week - 1] : monthThursdays[monthThursdays.length - 1];
-        taskStart = reportStart(dueDate);
       }
 
       const isMultipleMonths = safeDuration > 1;
@@ -531,22 +539,6 @@ export function createDefaultCoreTasks(
         monthIndex: month + 1
       });
     });
-
-    // The matrix lists four weekly reports a month, but some contract months have a fifth Thursday.
-    if (filteredTasks.some(t => t.title === 'التقرير الأسبوعي')) {
-      monthThursdays.slice(4).forEach((due, i) => {
-        allTasks.push({
-          id: `t-${clientId}-m${month}-weekly-report-${i + 5}`,
-          taskNumber: `W${i + 5}-ACC-01-M${month + 1}`,
-          title: 'التقرير الأسبوعي',
-          category: 'account_management',
-          startDate: reportStart(due),
-          dueDate: due,
-          completed: false,
-          monthIndex: month + 1
-        });
-      });
-    }
   }
 
   const formattedTasks = formatSequentialReports(allTasks);
@@ -666,10 +658,22 @@ export function syncClientTasksWithNewMatrix(client: Client): TaskItem[] {
 }
 
 export const COMPANY_OPTIONS = [
-  'AL - Ahly',
-  'SYT',
-  'Herak'
+  'رمّاح - Ramah',
 ] as const;
+
+export const COMPANY_LOGOS: Record<string, { light: string; dark: string; lightFallback: string; darkFallback: string }> = {
+  'رمّاح - Ramah': {
+    light: '/companies/ramah-light.png',
+    dark: '/companies/ramah-dark.png',
+    lightFallback: 'https://i.ibb.co/0pPzF0vq/Ramah-Agency-Arabic-Calligraphy-Logo.png',
+    darkFallback: 'https://i.ibb.co/q3DZckq2/Ramah-Agency-White-and-Red-Logo.png',
+  },
+};
+
+export function getCompanyLogo(companyName?: string) {
+  return COMPANY_LOGOS[companyName || ''] || COMPANY_LOGOS['رمّاح - Ramah'];
+}
+
 
 export const DRIVE_LINKS = {
   MAIN: 'https://drive.google.com/drive/folders/1SSvYU_96whB2JDDocMYL0jVWR_QUrw5V?usp=drive_link',
@@ -685,7 +689,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '56 580 9017',
     groupName: 'جروب فوزي - SCHTE4134',
     contract: 'FULL BACKAGE',
-    companyName: 'AL - Ahly',
+    companyName: 'رمّاح - Ramah',
     influencer: 'عمر الملحم',
     accountManager: 'أحمد جودة',
     assignedTo: 'أحمد جودة',
@@ -708,7 +712,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '50 379 9504',
     groupName: 'Simav - S6 Group',
     contract: 'FULL + MEDIA',
-    companyName: 'SYT',
+    companyName: 'رمّاح - Ramah',
     influencer: 'سارة الوابل',
     accountManager: 'سارة خالد',
     assignedTo: 'سارة خالد',
@@ -730,7 +734,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '50 726 6675',
     groupName: 'Rafha Club - HS4',
     contract: 'FULL BACKAGE',
-    companyName: 'Herak',
+    companyName: 'رمّاح - Ramah',
     influencer: '-',
     accountManager: 'محمد القحطاني',
     assignedTo: 'محمد القحطاني',
@@ -752,7 +756,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '55 699 0143',
     groupName: 'LA MENTA - SCHTE5379',
     contract: 'MEDIA',
-    companyName: 'SYT',
+    companyName: 'رمّاح - Ramah',
     influencer: 'ريما العلي',
     accountManager: 'نورة السالم',
     assignedTo: 'نورة السالم',
@@ -774,7 +778,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '56 110 6661',
     groupName: 'أ. عبد الله سالم - ACHTE3465',
     contract: 'FULL BACKAGE',
-    companyName: 'AL - Ahly',
+    companyName: 'رمّاح - Ramah',
     influencer: '-',
     accountManager: 'فهد العتيبي',
     assignedTo: 'فهد العتيبي',
@@ -796,7 +800,7 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     clientNumber: '54 008 0078',
     groupName: 'SCHTE3240 - ABRAR',
     contract: 'FULL BACKAGE',
-    companyName: 'Herak',
+    companyName: 'رمّاح - Ramah',
     influencer: '-',
     accountManager: 'أحمد جودة',
     assignedTo: 'أحمد جودة',
@@ -808,6 +812,31 @@ const RAW_INITIAL_CLIENTS: Client[] = [
     whatsappGroupLink: '',
     notes: 'العقد موقوف مؤقتاً بناءً على طلب العميل بسبب التجديدات',
     createdAt: '2026-05-01',
+    dailyActivations: [],
+    tasks: []
+  },
+  {
+    id: 'cli-soomi-land-r1',
+    code: 'R1',
+    clientName: 'Soomi land English',
+    clientNumber: '+966 53 641 3541',
+    groupName: 'Soomi land English - R1',
+    contract: 'فل باكدج',
+    companyName: 'رمّاح - Ramah',
+    influencer: '-',
+    accountManager: 'أحمد جودة',
+    assignedTo: 'أحمد جودة',
+    startDate: '2026-11-10',
+    durationMonths: 1,
+    endDate: '2026-12-10',
+    caseStatus: 'جديد',
+    briefLink: '',
+    whatsappGroupLink: '',
+    driveFolderUrl: 'https://drive.google.com/drive/folders/1oADb0EbnizKx0pfRvNvSsoBjc0h6fk7L?usp=sharing',
+    notes: '',
+    isVip: false,
+    createdAt: '2026-11-09',
+    contractDate: '2026-11-09',
     dailyActivations: [],
     tasks: []
   }

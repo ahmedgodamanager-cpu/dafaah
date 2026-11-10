@@ -4,7 +4,7 @@ export type TaskCategory =
   | 'media_buying'
   | 'social_media';
 
-export type CompanyType = 'AL - Ahly' | 'SYT' | 'Herak';
+export type CompanyType = 'رمّاح - Ramah' | 'AL - Ahly' | 'SYT' | 'Herak' | string;
 
 export type CaseStatus = 'نشط' | 'hold' | 'مكتمل' | 'جديد' | 'قيد المراجعة' | 'مؤجل';
 
@@ -94,6 +94,55 @@ export interface ClientActivity {
   performedBy?: string;
 }
 
+export interface SocialAccountCredential {
+  id: string;
+  platform: string; // e.g. 'إنستجرام' | 'سناب شات' | 'تيك توك' | 'فيسبوك' | 'تويتر / X' | 'لينكدإن' | 'يوتيوب' | 'أخرى'
+  username: string;
+  password?: string;
+  url?: string;
+  notes?: string;
+}
+
+export interface AdAccessAccount {
+  id: string;
+  platform: string; // e.g. 'Meta Ads (فيسبوك/إنستجرام)' | 'Snapchat Ads' | 'TikTok Ads' | 'Google Ads' | 'تويتر / X Ads' | 'أخرى'
+  email: string;
+  roleOrAccessLevel?: string; // 'مسؤول كامل (Admin)' | 'معلن (Advertiser)' | 'محلل (Analyst)' | 'أخرى'
+  accountId?: string;
+  notes?: string;
+}
+
+export type SallaAccessDepartment = 'أكونت مانجمنت' | 'سيو' | 'ميديا باينج' | 'عام';
+
+export interface SallaAccessEmail {
+  id: string;
+  email: string;
+  password?: string;
+  department: SallaAccessDepartment;
+  assignedPerson?: string;
+  notes?: string;
+}
+
+export interface SallaStoreAccount {
+  id: string;
+  storeName: string;
+  storeUrl?: string;
+  mainEmailOrPhone?: string;
+  mainPassword?: string;
+  accessEmails?: SallaAccessEmail[];
+  notes?: string;
+}
+
+export interface ClientCredentials {
+  gmailEmail?: string;
+  gmailPassword?: string;
+  gmailRecovery?: string;
+  socialAccounts?: SocialAccountCredential[];
+  adAccessAccounts?: AdAccessAccount[];
+  sallaAccounts?: SallaStoreAccount[];
+  notes?: string;
+}
+
 export interface Client {
   id: string;
   code: string;
@@ -146,6 +195,8 @@ export interface Client {
   assignedToName?: string;
   ownerName?: string;
   accountManager?: string;
+  credentials?: ClientCredentials;
+  gmailEmail?: string;
 }
 
 export interface TaskAlert {

@@ -19,7 +19,7 @@ import { db } from '../firebase';
 import { Client, TaskItem, DailyActivation, AppNotification, ConnectionStatus, ClientActivity } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType, notifyWriteError, isPermissionError } from '../utils/firebaseUtils';
-import { INITIAL_CLIENTS, syncClientTasksWithNewMatrix } from '../data/initialClients';
+import { INITIAL_CLIENTS, syncClientTasksWithNewMatrix, createDefaultCoreTasks } from '../data/initialClients';
 import { evaluateClientCaseStatus, addBusinessDays, getTodayStr, toLocalDateStr, isPlausibleDateStr } from '../utils/dateUtils';
 import { isUserSuspended, isManagerUser } from '../utils/userStatusUtils';
 import {
@@ -186,6 +186,8 @@ export const useFirestoreData = () => {
   const pendingPortalTokensRef = useRef<Record<string, string>>({});
   /** The client list has come from the server in this session (not only from this browser's copy). */
   const clientsSyncedRef = useRef(false);
+  const hasMigratedRamahRef = useRef(false);
+  const hasSeededR1Ref = useRef(false);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -571,6 +573,81 @@ export const useFirestoreData = () => {
           else src.docs[d.id] = client;
           changed.push({ id: d.id, client });
         });
+
+        if (!hasMigratedRamahRef.current && (user?.email === 'ahmedgoda.manager@gmail.com' || canSeeAll)) {
+          hasMigratedRamahRef.current = true;
+          docsToProcess.forEach(d => {
+            const raw = d.data();
+            const rawComp = typeof raw.companyName === 'string' ? raw.companyName.trim() : '';
+            if (!rawComp || rawComp === 'AL - Ahly' || rawComp === 'SYT' || rawComp === 'Herak') {
+              updateDoc(doc(db, 'clients', d.id), { companyName: 'رمّاح - Ramah' }).catch(() => {});
+            }
+          });
+        }
+
+        const hasR1Client = snapshot.docs.some(d => {
+          const raw = d.data();
+          const cCode = typeof raw.code === 'string' ? raw.code.trim().toUpperCase() : '';
+          const cName = typeof raw.clientName === 'string' ? raw.clientName.trim().toLowerCase() : '';
+          const isR1 = cCode === 'R1' || cName === 'soomi land english' || d.id === 'cli-soomi-land-r1';
+          if (isR1 && raw.endDate === '2026-12-20' && (user?.email === 'ahmedgoda.manager@gmail.com' || canSeeAll)) {
+            updateDoc(doc(db, 'clients', d.id), { endDate: '2026-12-10' }).catch(() => {});
+          }
+          return isR1;
+        });
+
+        if (!hasR1Client && !hasSeededR1Ref.current && (user?.email === 'ahmedgoda.manager@gmail.com' || canSeeAll)) {
+          hasSeededR1Ref.current = true;
+          const r1ClientId = 'cli-soomi-land-r1';
+          const tasks = createDefaultCoreTasks(r1ClientId, '2026-11-10', '2026-12-10', 'فل باكدج', 1).map(t => ({
+            ...t,
+            createdBy: uid || 'system',
+          }));
+          const clientData: Record<string, any> = {
+            id: r1ClientId,
+            code: 'R1',
+            clientName: 'Soomi land English',
+            clientNumber: '+966 53 641 3541',
+            groupName: 'Soomi land English - R1',
+            contract: 'فل باكدج',
+            companyName: 'رمّاح - Ramah',
+            influencer: '-',
+            accountManager: 'أحمد جودة',
+            assignedTo: 'أحمد جودة',
+            startDate: '2026-11-10',
+            durationMonths: 1,
+            endDate: '2026-12-10',
+            caseStatus: 'جديد',
+            briefLink: '',
+            whatsappGroupLink: '',
+            driveFolderUrl: 'https://drive.google.com/drive/folders/1oADb0EbnizKx0pfRvNvSsoBjc0h6fk7L?usp=sharing',
+            notes: '',
+            isVip: false,
+            createdAt: '2026-11-09',
+            contractDate: '2026-11-09',
+            createdBy: uid || 'system',
+            lastUpdated: nowIso(),
+            tasksMaterialized: true,
+          };
+
+          const batch = writeBatch(db);
+          batch.set(doc(db, 'clients', r1ClientId), clientData);
+          tasks.forEach(t => {
+            batch.set(doc(db, 'clients', r1ClientId, 'tasks', t.id), serializeTask(t));
+          });
+          const actId = newActivityId();
+          batch.set(doc(db, 'clients', r1ClientId, 'activities', actId), {
+            id: actId,
+            action: 'إضافة العميل',
+            details: 'تم إضافة العميل Soomi land English (R1)',
+            createdAt: nowIso(),
+            performedBy: actorNameRef.current,
+          });
+
+          batch.commit().catch(err => {
+            console.error('Failed to auto-seed R1 client to Firestore:', err);
+          });
+        }
 
         Object.keys(subUnsubs).forEach(id => {
           if (!presentIds.has(id)) detach(id);

@@ -79,11 +79,17 @@ export function normalizeClientDoc(raw: any, id: string): Client | null {
   if (!clientName.trim() && !code.trim()) return null;
 
   const duration = Number(raw.durationMonths);
+  const rawCompany = asString(raw.companyName).trim();
+  const companyName = (!rawCompany || rawCompany === 'AL - Ahly' || rawCompany === 'SYT' || rawCompany === 'Herak')
+    ? 'رمّاح - Ramah'
+    : rawCompany;
+
   return {
     ...raw,
     id,
     code,
     clientName,
+    companyName,
     clientNumber: asString(raw.clientNumber),
     groupName: asString(raw.groupName),
     contract: asString(raw.contract),
@@ -108,8 +114,7 @@ export function sortTasksByDueDate(tasks: TaskItem[]): TaskItem[] {
   return [...tasks].sort((a, b) => {
     const diff = dueTime(a) - dueTime(b);
     if (diff !== 0) return diff;
-    // numeric: "W4-SEO-01-6" comes before "W4-SEO-01-10".
-    return (a.taskNumber || a.title || a.id).localeCompare(b.taskNumber || b.title || b.id, undefined, { numeric: true });
+    return (a.taskNumber || a.title || a.id).localeCompare(b.taskNumber || b.title || b.id);
   });
 }
 
