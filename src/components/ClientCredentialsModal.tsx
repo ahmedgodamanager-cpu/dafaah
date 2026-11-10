@@ -43,6 +43,15 @@ interface ClientCredentialsModalProps {
 /** An address typed without https:// still opens as a link. */
 const asLink = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
+// An entry counts once something is typed in it; untouched new entries are dropped on save.
+const sallaHasData = (s: SallaStoreAccount) =>
+  !!(s.storeName.trim() || s.mainEmailOrPhone?.trim() || s.mainPassword?.trim() ||
+    s.accessEmails?.some(a => a.email.trim() || a.password?.trim()));
+const wordpressHasData = (s: WordPressSiteCredential) =>
+  !!(s.siteUrl.trim() || s.adminUrl?.trim() || s.username.trim() || s.password?.trim() || s.notes?.trim());
+
+type StorePlatform = 'salla' | 'wordpress';
+
 const SOCIAL_PLATFORMS = [
   'إنستجرام (Instagram)',
   'سناب شات (Snapchat)',
@@ -98,7 +107,19 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
   const [adAccessAccounts, setAdAccessAccounts] = useState<AdAccessAccount[]>([]);
   const [sallaAccounts, setSallaAccounts] = useState<SallaStoreAccount[]>([]);
   const [wordpressSites, setWordpressSites] = useState<WordPressSiteCredential[]>([]);
+  const [storePlatform, setStorePlatform] = useState<StorePlatform>('salla');
   const [notes, setNotes] = useState('');
+
+  // Switching platform is only allowed while the current one has nothing filled in.
+  const sallaInUse = sallaAccounts.some(sallaHasData);
+  const wordpressInUse = wordpressSites.some(wordpressHasData);
+  const canSwitchTo = (platform: StorePlatform) =>
+    platform === storePlatform || (platform === 'wordpress' ? !sallaInUse : !wordpressInUse) || (sallaInUse && wordpressInUse);
+  const switchStorePlatform = (platform: StorePlatform) => {
+    if (!canSwitchTo(platform)) return;
+    setStorePlatform(platform);
+    setActiveTab(platform);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -113,8 +134,12 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
       setNotes(creds.notes || '');
       setVisiblePasswords({});
       setCopiedKey(null);
+      // A client's store is on Salla or on WordPress, never both: open on the one it has.
+      const platform: StorePlatform =
+        (creds.wordpressSites || []).some(wordpressHasData) && !(creds.sallaAccounts || []).some(sallaHasData) ? 'wordpress' : 'salla';
+      setStorePlatform(platform);
       if (initialTab) {
-        setActiveTab(initialTab);
+        setActiveTab(initialTab === 'salla' || initialTab === 'wordpress' ? platform : initialTab);
       }
     }
   }, [isOpen, client, initialTab]);
@@ -289,13 +314,8 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
         gmailRecovery: gmailRecovery.trim(),
         socialAccounts: socialAccounts.filter(a => a.username.trim() || a.password?.trim() || a.notes?.trim()),
         adAccessAccounts: adAccessAccounts.filter(a => a.email.trim() || a.password?.trim() || a.accountId?.trim() || a.notes?.trim()),
-        wordpressSites: wordpressSites.filter(s => s.siteUrl.trim() || s.adminUrl?.trim() || s.username.trim() || s.password?.trim() || s.notes?.trim()),
-        sallaAccounts: sallaAccounts.filter(s => 
-          s.storeName.trim() || 
-          s.mainEmailOrPhone?.trim() || 
-          s.mainPassword?.trim() || 
-          (s.accessEmails && s.accessEmails.some(a => a.email.trim() || a.password?.trim()))
-        ),
+        wordpressSites: wordpressSites.filter(wordpressHasData),
+        sallaAccounts: sallaAccounts.filter(sallaHasData),
         notes: notes.trim(),
       };
 
@@ -359,37 +379,40 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
 
         {/* Navigation Tabs */}
         <div className="flex items-center px-6 pt-3 border-b border-slate-100 dark:border-slate-800 gap-2 overflow-x-auto scrollbar-none bg-white dark:bg-[#18181B]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('salla')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'salla'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>متجر سلة (Salla)</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
-              {sallaAccounts.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('wordpress')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'wordpress'
-                ? 'border-sky-500 text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-950/20'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-            }`}
-          >
-            <Globe className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-            <span>ووردبريس (WordPress)</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold border border-sky-200 dark:border-sky-800">
-              {wordpressSites.length}
-            </span>
-          </button>
+          {/* One tab for the client's store: Salla or WordPress */}
+          {storePlatform === 'salla' ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab('salla')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'salla'
+                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>متجر سلة (Salla)</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
+                {sallaAccounts.length}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveTab('wordpress')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'wordpress'
+                  ? 'border-sky-500 text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-950/20'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+              }`}
+            >
+              <Globe className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+              <span>موقع ووردبريس (WordPress)</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold border border-sky-200 dark:border-sky-800">
+                {wordpressSites.length}
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -458,6 +481,42 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
 
         {/* Tab Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+          {/* Store platform: Salla or WordPress */}
+          {(activeTab === 'salla' || activeTab === 'wordpress') && (
+            <div className="space-y-2">
+              <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">متجر العميل على</span>
+              <div className="inline-flex p-1 gap-1 rounded-xl bg-slate-100 dark:bg-[#141416] border border-slate-200 dark:border-slate-800">
+                {([
+                  { value: 'salla', label: 'سلة', Icon: ShoppingBag, active: 'bg-emerald-600 text-white shadow-xs' },
+                  { value: 'wordpress', label: 'ووردبريس', Icon: Globe, active: 'bg-sky-600 text-white shadow-xs' },
+                ] as const).map(({ value, label, Icon, active }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => switchStorePlatform(value)}
+                    disabled={!canSwitchTo(value)}
+                    aria-pressed={storePlatform === value}
+                    className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      storePlatform === value
+                        ? active
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-500'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              {!canSwitchTo(storePlatform === 'salla' ? 'wordpress' : 'salla') && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  {storePlatform === 'salla'
+                    ? 'العميل مسجل له متجر سلة. احذف بياناته الأول لو عايز تحوّله لووردبريس.'
+                    : 'العميل مسجل له موقع ووردبريس. احذف بياناته الأول لو عايز تحوّله لسلة.'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* TAB 0: SALLA STORE ACCOUNTS */}
           {activeTab === 'salla' && (
