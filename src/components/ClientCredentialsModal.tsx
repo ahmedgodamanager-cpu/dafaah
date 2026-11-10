@@ -30,7 +30,7 @@ import {
   WordPressSiteCredential
 } from '../types';
 
-type CredentialsTab = 'social' | 'ads' | 'salla' | 'wordpress' | 'gmail' | 'notes';
+export type CredentialsTab = 'social' | 'ads' | 'salla' | 'wordpress' | 'gmail' | 'notes';
 
 interface ClientCredentialsModalProps {
   isOpen: boolean;

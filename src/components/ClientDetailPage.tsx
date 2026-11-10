@@ -81,6 +81,7 @@ import { ClientTimelineSection } from './ClientTimelineSection';
 import { ClientActivitiesSection } from './ClientActivitiesSection';
 import { ClientLogo } from './ClientLogo';
 import { ClientNotesSection } from './ClientNotesSection';
+import { ClientCredentialsSection } from './ClientCredentialsSection';
 import { ConfirmationModal } from './ConfirmationModal';
 import { TaskComments } from './TaskComments';
 import { englishFontFace } from '../utils/fonts';
@@ -158,7 +159,7 @@ export const ClientDetailPage: React.FC<ClientDetailPageProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const isAdmin = user?.email === 'ahmedgoda.manager@gmail.com' || profile?.role === 'admin';
-  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'activations' | 'timeline' | 'activities' | 'notes'>('tasks');
+  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'activations' | 'timeline' | 'activities' | 'notes' | 'credentials'>('tasks');
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'all'>('all');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'in_progress' | 'completed' | 'delayed'>('all');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -1495,9 +1496,30 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
           <StickyNote className="w-4 h-4 text-amber-200" />
           <span>مذكرات العميل</span>
         </button>
+
+        <button
+          onClick={() => setActiveSubTab('credentials')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-w-[140px] ${
+            activeSubTab === 'credentials'
+              ? 'bg-sky-600 text-white shadow-xs'
+              : 'text-[var(--text-muted)] hover:text-slate-900 dark:hover:text-slate-100'
+          }`}
+        >
+          <Key className="w-4 h-4 text-sky-300" />
+          <span>الحسابات والباسوردات</span>
+        </button>
       </div>
 
-      {activeSubTab === 'notes' ? (
+      {activeSubTab === 'credentials' ? (
+        // Passwords stay off printed pages.
+        <div className="print:hidden">
+          <ClientCredentialsSection
+            client={client}
+            onUpdateClient={async changes => (await onUpdateClient(changes)) !== false}
+            isReadingMode={isReadingMode}
+          />
+        </div>
+      ) : activeSubTab === 'notes' ? (
         <ClientNotesSection 
           client={client}
           onUpdateClient={onUpdateClient}
