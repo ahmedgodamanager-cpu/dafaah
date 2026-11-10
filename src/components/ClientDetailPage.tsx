@@ -83,6 +83,7 @@ import { ClientLogo } from './ClientLogo';
 import { ClientNotesSection } from './ClientNotesSection';
 import { ConfirmationModal } from './ConfirmationModal';
 import { TaskComments } from './TaskComments';
+import { englishFontFace } from '../utils/fonts';
 import { calculateClientProgress,
   formatDateArabic,
   getDaysDifference, getRemainingContractDays,
@@ -572,6 +573,7 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
         <title>تقرير مهام - ${esc(client.clientName)}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+          ${englishFontFace()}
           @page {
             size: A4 portrait;
             margin: 12mm 10mm 12mm 10mm;
@@ -581,10 +583,10 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          body { 
-            font-family: 'Cairo', sans-serif; 
-            padding: 20px; 
-            color: #0f172a; 
+          body {
+            font-family: 'Roken', 'Cairo', sans-serif;
+            padding: 20px;
+            color: #0f172a;
             background: #ffffff;
             line-height: 1.6;
             direction: rtl;
@@ -738,11 +740,11 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
           تم إنشاء هذا التقرير تلقائياً من نظام الإدارة
         </div>
         <script>
-          window.onload = () => { 
-            setTimeout(() => {
-              window.print(); 
-              window.close(); 
-            }, 500);
+          window.onload = () => {
+            document.fonts.ready.then(() => setTimeout(() => {
+              window.print();
+              window.close();
+            }, 500));
           };
         </script>
       </body>
