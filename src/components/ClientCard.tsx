@@ -217,7 +217,7 @@ ${taskListPreview}${moreTasksText}
     return client.startDate ? -getDaysDifference(client.startDate) : -1;
   }, [client.startDate]);
 
-  const isFirstMonth = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 40;
+  const isFirstMonth = elapsedContractDaysSinceStart >= 0 && elapsedContractDaysSinceStart <= 30;
 
   // Credentials summary
   const creds = client.credentials;

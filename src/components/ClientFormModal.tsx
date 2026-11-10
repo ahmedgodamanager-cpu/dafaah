@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, PlusCircle, Users, Calendar, Phone, Link2, FileText, CheckSquare, Building2, Folder, ExternalLink, Crown } from 'lucide-react';
 import { Client, TaskItem, CompanyType } from '../types';
 import { createDefaultCoreTasks, COMPANY_OPTIONS, DRIVE_LINKS } from '../data/initialClients';
-import { parseDate, formatDateToYYYYMMDD, getTodayStr } from '../utils/dateUtils';
+import { getContractEndDate, parseDate, formatDateToYYYYMMDD, getTodayStr } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { checkClientDuplication } from '../utils/clientValidation';
 import { isAdminUser } from '../utils/userStatusUtils';
@@ -254,12 +254,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
     const effectiveDurationMonths = contract === 'الاقتصادية' ? economyFullPackageMonths + economyMediaMonths : Number(durationMonths);
 
-    // Calculate end date based on duration (and any days the client already
-    // spent on hold: those extend the contract, so re-calculating must not take them away again)
-    const sDate = parseDate(startDate) || new Date();
-    const eDate = new Date(sDate.getFullYear(), sDate.getMonth() + effectiveDurationMonths, sDate.getDate(), 12, 0, 0);
-    eDate.setDate(eDate.getDate() + (Number(clientToEdit?.accumulatedHoldDays) || 0));
-    const endDateStr = formatDateToYYYYMMDD(eDate);
+    // End date: start + duration, + the days the client already spent on hold (those extend the
+    // contract, so re-calculating must not take them away again)
+    const endDateStr = getContractEndDate({
+      startDate,
+      durationMonths: effectiveDurationMonths,
+      accumulatedHoldDays: clientToEdit?.accumulatedHoldDays,
+    });
 
     const scheduleChanged = !!clientToEdit && (
       startDate !== (clientToEdit.startDate || '') ||

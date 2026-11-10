@@ -221,7 +221,7 @@ export const ClientDetailPage: React.FC<ClientDetailPageProps> = ({
 • كود العميل: ${client.code}
 ${client.companyName ? `• الشركة: ${client.companyName}\n` : ''}• نوع العقد: ${client.contract}
 • حالة العقد: ${client.caseStatus}
-• مدة العقد: ${client.durationMonths} ${client.durationMonths === 1 ? 'شهر' : 'أشهر'} (+ 10 أيام)
+• مدة العقد: ${client.durationMonths} ${client.durationMonths === 1 ? 'شهر' : 'أشهر'}
 • رقم الهاتف: ${client.clientNumber}
 ${client.groupName ? `• اسم الجروب: ${client.groupName}\n` : ''}${client.contractDate ? `• تاريخ التعاقد: ${formatDateArabic(client.contractDate)}\n` : ''}• تاريخ بداية العمل: ${formatDateArabic(client.startDate)}
 • تاريخ النهاية: ${formatDateArabic(client.endDate)}
@@ -985,7 +985,7 @@ ${client.driveFolderUrl ? `• رابط المجلد: ${client.driveFolderUrl}\n
                   نوع العقد: {client.contract}
                 </span>
                 <span className="h-[26px] px-3 bg-[var(--surface-hover)] text-[var(--text)] rounded-full text-xs font-semibold flex items-center">
-                  مدة العقد: {client.durationMonths} {client.durationMonths === 1 ? 'شهر' : 'أشهر'} (+ 10 أيام)
+                  مدة العقد: {client.durationMonths} {client.durationMonths === 1 ? 'شهر' : 'أشهر'}
                 </span>
                 {isExpired && (
                   <span className="h-[26px] px-3 bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-full text-xs font-bold flex items-center">
