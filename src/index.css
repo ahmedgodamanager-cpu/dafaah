@@ -8,8 +8,9 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  /* Everything Roken draws except spaces: its space is much wider than Cairo's and would open up Arabic text. */
-  unicode-range: U+0021-007E, U+00A1-00AC, U+00AE-024F, U+0300-036F, U+2010-205E, U+20A0-20CF, U+2100-22FF;
+  /* Everything Roken draws except spaces (its space is much wider than Cairo's and would open up
+     Arabic text) and @ (Roken's @ is empty, so e-mail addresses lost it). Both come from Cairo. */
+  unicode-range: U+0021-003F, U+0041-007E, U+00A1-00AC, U+00AE-024F, U+0300-036F, U+2010-205E, U+20A0-20CF, U+2100-22FF;
   /* Cairo's line metrics, so a line that mixes both fonts keeps its height. */
   ascent-override: 130.3%;
   descent-override: 57.1%;
