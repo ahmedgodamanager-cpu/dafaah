@@ -107,6 +107,7 @@ export interface AdAccessAccount {
   id: string;
   platform: string; // e.g. 'Meta Ads (فيسبوك/إنستجرام)' | 'Snapchat Ads' | 'TikTok Ads' | 'Google Ads' | 'تويتر / X Ads' | 'أخرى'
   email: string;
+  password?: string;
   roleOrAccessLevel?: string; // 'مسؤول كامل (Admin)' | 'معلن (Advertiser)' | 'محلل (Analyst)' | 'أخرى'
   accountId?: string;
   notes?: string;
@@ -133,6 +134,14 @@ export interface SallaStoreAccount {
   notes?: string;
 }
 
+export interface WordPressSiteCredential {
+  id: string;
+  siteUrl: string;
+  adminUrl?: string; // usually siteUrl + /wp-admin
+  username: string;
+  password?: string;
+  notes?: string;
+}
 export interface ClientCredentials {
   gmailEmail?: string;
   gmailPassword?: string;
@@ -140,6 +149,7 @@ export interface ClientCredentials {
   socialAccounts?: SocialAccountCredential[];
   adAccessAccounts?: AdAccessAccount[];
   sallaAccounts?: SallaStoreAccount[];
+  wordpressSites?: WordPressSiteCredential[];
   notes?: string;
 }
 

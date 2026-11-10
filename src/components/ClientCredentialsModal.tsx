@@ -15,7 +15,8 @@ import {
   ExternalLink,
   Save,
   FileText,
-  ShoppingBag
+  ShoppingBag,
+  Globe
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -25,16 +26,22 @@ import {
   AdAccessAccount,
   SallaStoreAccount,
   SallaAccessEmail,
-  SallaAccessDepartment
+  SallaAccessDepartment,
+  WordPressSiteCredential
 } from '../types';
+
+type CredentialsTab = 'social' | 'ads' | 'salla' | 'wordpress' | 'gmail' | 'notes';
 
 interface ClientCredentialsModalProps {
   isOpen: boolean;
   onClose: () => void;
   client: Client;
   onSave: (updatedClient: Partial<Client> & { id: string }) => Promise<boolean>;
-  initialTab?: 'social' | 'ads' | 'salla' | 'gmail' | 'notes';
+  initialTab?: CredentialsTab;
 }
+
+/** An address typed without https:// still opens as a link. */
+const asLink = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const SOCIAL_PLATFORMS = [
   'إنستجرام (Instagram)',
@@ -78,7 +85,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
   onSave,
   initialTab = 'social',
 }) => {
-  const [activeTab, setActiveTab] = useState<'social' | 'ads' | 'salla' | 'gmail' | 'notes'>(initialTab);
+  const [activeTab, setActiveTab] = useState<CredentialsTab>(initialTab);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
@@ -90,6 +97,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountCredential[]>([]);
   const [adAccessAccounts, setAdAccessAccounts] = useState<AdAccessAccount[]>([]);
   const [sallaAccounts, setSallaAccounts] = useState<SallaStoreAccount[]>([]);
+  const [wordpressSites, setWordpressSites] = useState<WordPressSiteCredential[]>([]);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -101,6 +109,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
       setSocialAccounts(creds.socialAccounts ? JSON.parse(JSON.stringify(creds.socialAccounts)) : []);
       setAdAccessAccounts(creds.adAccessAccounts ? JSON.parse(JSON.stringify(creds.adAccessAccounts)) : []);
       setSallaAccounts(creds.sallaAccounts ? JSON.parse(JSON.stringify(creds.sallaAccounts)) : []);
+      setWordpressSites(creds.wordpressSites ? JSON.parse(JSON.stringify(creds.wordpressSites)) : []);
       setNotes(creds.notes || '');
       setVisiblePasswords({});
       setCopiedKey(null);
@@ -159,12 +168,34 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
     setSocialAccounts(prev => prev.filter(acc => acc.id !== id));
   };
 
+  // WordPress site helpers
+  const handleAddWordpressSite = () => {
+    const newSite: WordPressSiteCredential = {
+      id: `wp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      siteUrl: '',
+      adminUrl: '',
+      username: '',
+      password: '',
+      notes: ''
+    };
+    setWordpressSites(prev => [newSite, ...prev]);
+  };
+
+  const handleUpdateWordpressSite = (id: string, updates: Partial<WordPressSiteCredential>) => {
+    setWordpressSites(prev => prev.map(site => site.id === id ? { ...site, ...updates } : site));
+  };
+
+  const handleRemoveWordpressSite = (id: string) => {
+    setWordpressSites(prev => prev.filter(site => site.id !== id));
+  };
+
   // Ad access account helpers
   const handleAddAdAccessAccount = () => {
     const newAd: AdAccessAccount = {
       id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       platform: 'Meta Ads (فيسبوك وإنستجرام)',
       email: '',
+      password: '',
       roleOrAccessLevel: 'مسؤول كامل (Admin)',
       accountId: '',
       notes: ''
@@ -257,7 +288,8 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
         gmailPassword: gmailPassword.trim(),
         gmailRecovery: gmailRecovery.trim(),
         socialAccounts: socialAccounts.filter(a => a.username.trim() || a.password?.trim() || a.notes?.trim()),
-        adAccessAccounts: adAccessAccounts.filter(a => a.email.trim() || a.accountId?.trim() || a.notes?.trim()),
+        adAccessAccounts: adAccessAccounts.filter(a => a.email.trim() || a.password?.trim() || a.accountId?.trim() || a.notes?.trim()),
+        wordpressSites: wordpressSites.filter(s => s.siteUrl.trim() || s.adminUrl?.trim() || s.username.trim() || s.password?.trim() || s.notes?.trim()),
         sallaAccounts: sallaAccounts.filter(s => 
           s.storeName.trim() || 
           s.mainEmailOrPhone?.trim() || 
@@ -345,6 +377,22 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveTab('wordpress')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'wordpress'
+                ? 'border-sky-500 text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-950/20'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+            <span>ووردبريس (WordPress)</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold border border-sky-200 dark:border-sky-800">
+              {wordpressSites.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('social')}
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'social'
@@ -369,7 +417,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
             }`}
           >
             <Target className="w-4 h-4" />
-            <span>إيميلات أكسيس الإعلانات</span>
+            <span>الحسابات الإعلانية</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 font-bold">
               {adAccessAccounts.length}
             </span>
@@ -741,6 +789,208 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
             </div>
           )}
 
+          {/* WORDPRESS SITES */}
+          {activeTab === 'wordpress' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                    <span>مواقع ووردبريس (WordPress)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    سجل رابط الموقع ولوحة التحكم وبيانات دخول المدير لكل موقع ووردبريس للعميل.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddWordpressSite}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>إضافة موقع</span>
+                </button>
+              </div>
+
+              {wordpressSites.length === 0 ? (
+                <div className="py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-3 bg-slate-50/50 dark:bg-[#1A1A1E]">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200 dark:border-sky-800">
+                    <Globe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      لم يتم تسجيل موقع ووردبريس بعد
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+                      أضف رابط الموقع ولوحة التحكم واسم المستخدم وكلمة المرور.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddWordpressSite}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>إضافة موقع الآن</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {wordpressSites.map((site, idx) => {
+                    const passKey = `wp-pass-${site.id}`;
+                    const isPassVisible = !!visiblePasswords[passKey];
+                    const loginUrl = site.adminUrl?.trim() || (site.siteUrl.trim() ? `${site.siteUrl.trim().replace(/\/+$/, '')}/wp-admin` : '');
+
+                    return (
+                      <div
+                        key={site.id || idx}
+                        className="p-4 bg-slate-50/80 dark:bg-[#1E1E22] border border-sky-200/60 dark:border-sky-900/40 rounded-2xl space-y-3 relative group"
+                      >
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-bold text-slate-400 font-mono">#{idx + 1}</span>
+                            <span className="font-bold text-xs text-sky-700 dark:text-sky-300 truncate" dir="ltr">
+                              {site.siteUrl.trim() || 'موقع ووردبريس'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {loginUrl && (
+                              <a
+                                href={asLink(loginUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 text-slate-400 hover:text-sky-600 transition-colors"
+                                title="فتح لوحة التحكم"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveWordpressSite(site.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                              title="حذف الموقع"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Site URL */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              رابط الموقع
+                            </label>
+                            <input
+                              type="url"
+                              dir="ltr"
+                              value={site.siteUrl}
+                              onChange={e => handleUpdateWordpressSite(site.id, { siteUrl: e.target.value })}
+                              placeholder="https://example.com"
+                              className="w-full px-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 text-left font-mono"
+                            />
+                          </div>
+
+                          {/* Admin URL */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              رابط لوحة التحكم (لو مختلف عن wp-admin)
+                            </label>
+                            <input
+                              type="url"
+                              dir="ltr"
+                              value={site.adminUrl || ''}
+                              onChange={e => handleUpdateWordpressSite(site.id, { adminUrl: e.target.value })}
+                              placeholder="https://example.com/wp-admin"
+                              className="w-full px-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 text-left font-mono"
+                            />
+                          </div>
+
+                          {/* Username */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              اسم المستخدم أو الإيميل
+                            </label>
+                            <div className="relative flex items-center">
+                              <input
+                                type="text"
+                                dir="ltr"
+                                value={site.username}
+                                onChange={e => handleUpdateWordpressSite(site.id, { username: e.target.value })}
+                                placeholder="admin أو admin@example.com"
+                                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-left"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(site.username, 'اسم المستخدم', `wp-user-${site.id}`)}
+                                className="absolute left-1.5 p-1 text-slate-400 hover:text-sky-600 transition-colors cursor-pointer"
+                                title="نسخ اسم المستخدم"
+                              >
+                                {copiedKey === `wp-user-${site.id}` ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Password */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              كلمة المرور (Password)
+                            </label>
+                            <div className="relative flex items-center">
+                              <input
+                                type={isPassVisible ? 'text' : 'password'}
+                                dir="ltr"
+                                value={site.password || ''}
+                                onChange={e => handleUpdateWordpressSite(site.id, { password: e.target.value })}
+                                placeholder="••••••••••••"
+                                className="w-full pl-16 pr-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-left tracking-wider"
+                              />
+                              <div className="absolute left-1.5 flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => togglePasswordVisibility(passKey)}
+                                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                  title={isPassVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                                >
+                                  {isPassVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(site.password || '', 'كلمة المرور', passKey)}
+                                  className="p-1 text-slate-400 hover:text-sky-600 transition-colors cursor-pointer"
+                                  title="نسخ كلمة المرور"
+                                >
+                                  {copiedKey === passKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Notes */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              ملاحظات (الاستضافة، التحقق بخطوتين، ...)
+                            </label>
+                            <input
+                              type="text"
+                              value={site.notes || ''}
+                              onChange={e => handleUpdateWordpressSite(site.id, { notes: e.target.value })}
+                              placeholder="مثال: الاستضافة على Hostinger / يطلب رمز على إيميل العميل"
+                              className="w-full px-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 1: SOCIAL MEDIA ACCOUNTS */}
           {activeTab === 'social' && (
             <div className="space-y-4">
@@ -925,10 +1175,10 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    إيميلات وصلاحيات الوصول للحسابات الإعلانية
+                    الحسابات الإعلانية وصلاحيات الوصول
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    سجل إيميلات الأكسيس الممنوحة لفريق الميديا باينج على حسابات فيسبوك، جوجل، تيك توك، وسناب شات.
+                    سجل إيميل وكلمة مرور كل حساب إعلاني، والصلاحية الممنوحة لفريق الميديا باينج على فيسبوك وجوجل وتيك توك وسناب شات.
                   </p>
                 </div>
 
@@ -1021,6 +1271,41 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
                           </div>
                         </div>
 
+                        {/* Password */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                            كلمة المرور (Password)
+                          </label>
+                          <div className="relative flex items-center">
+                            <input
+                              type={visiblePasswords[`ad-pass-${ad.id}`] ? 'text' : 'password'}
+                              dir="ltr"
+                              value={ad.password || ''}
+                              onChange={e => handleUpdateAdAccessAccount(ad.id, { password: e.target.value })}
+                              placeholder="••••••••••••"
+                              className="w-full pl-16 pr-3 py-2 bg-white dark:bg-[#141416] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#593BFE] font-mono text-left tracking-wider"
+                            />
+                            <div className="absolute left-1.5 flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => togglePasswordVisibility(`ad-pass-${ad.id}`)}
+                                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                title={visiblePasswords[`ad-pass-${ad.id}`] ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                              >
+                                {visiblePasswords[`ad-pass-${ad.id}`] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(ad.password || '', 'كلمة المرور', `ad-pass-${ad.id}`)}
+                                className="p-1 text-slate-400 hover:text-[#593BFE] transition-colors cursor-pointer"
+                                title="نسخ كلمة المرور"
+                              >
+                                {copiedKey === `ad-pass-${ad.id}` ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Role / Access Level */}
                         <div>
                           <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
@@ -1063,7 +1348,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
                         </div>
 
                         {/* Notes */}
-                        <div>
+                        <div className="sm:col-span-2">
                           <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                             ملاحظات على الحساب الإعلاني
                           </label>
@@ -1201,7 +1486,7 @@ export const ClientCredentialsModal: React.FC<ClientCredentialsModalProps> = ({
         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-[#202024]/60 flex items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>البيانات مشفرة ومحفوظة لفريق العمل المصرح له فقط.</span>
+            <span>محفوظة مع بيانات العميل، وظاهرة لكل فريق العمل المفعّل في التطبيق.</span>
           </div>
 
           <div className="flex items-center gap-2">

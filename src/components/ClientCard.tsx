@@ -226,8 +226,9 @@ ${taskListPreview}${moreTasksText}
   const sallaStores = creds?.sallaAccounts || [];
   const sallaCount = sallaStores.length;
   const sallaAccessCount = sallaStores.reduce((acc, s) => acc + (s.accessEmails?.length || 0), 0);
+  const wordpressCount = creds?.wordpressSites?.length || 0;
   const hasGmail = !!(creds?.gmailEmail || client.gmailEmail);
-  const totalCredsCount = socialCount + adCount + sallaCount + (hasGmail ? 1 : 0);
+  const totalCredsCount = socialCount + adCount + sallaCount + wordpressCount + (hasGmail ? 1 : 0);
   const hasCredentials = totalCredsCount > 0 || !!creds?.notes;
 
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
@@ -468,6 +469,11 @@ ${taskListPreview}${moreTasksText}
                 {sallaCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
                     سلة ({sallaCount}{sallaAccessCount > 0 ? ` · ${sallaAccessCount} أكسيس` : ''})
+                  </span>
+                )}
+                {wordpressCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-bold">
+                    ووردبريس ({wordpressCount})
                   </span>
                 )}
                 {hasGmail && (
