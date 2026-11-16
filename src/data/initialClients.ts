@@ -201,6 +201,121 @@ const departmentToCategory: Record<string, TaskCategory> = {
   "Social Media": "social_media"
 };
 
+// ==========================================
+// أول شهر لعقد الانشاء: أربع مراحل بدل جولات الأسبوع الأول والثاني
+// ==========================================
+// The dates are worked out in establishmentFirstMonthDates below; numbers from 21 up keep these
+// tasks apart from the full-package ones.
+export const establishmentFirstMonthTasks: Array<{
+  id: string;
+  department: "Account Management" | "SEO" | "Media Buying" | "Social Media";
+  week: number;
+  title: string;
+}> = [
+  // أولاً: التأسيس والتخطيط
+  { id: "W1-ACC-21", department: "Account Management", week: 1, title: "استلام ومراجعة بريف العميل (الميزانية، المضامين، ونقاط القوة)" },
+  { id: "W1-SOC-21", department: "Social Media", week: 1, title: "تصميم اللوجو والهوية البصرية" },
+  { id: "W2-SEO-21", department: "SEO", week: 2, title: "تصميم واجهة وتجربة المستخدم (UI/UX)" },
+  { id: "W2-SEO-22", department: "SEO", week: 2, title: "أعمال البرمجة والتطوير" },
+  { id: "W1-SOC-22", department: "Social Media", week: 1, title: "إعداد خطة السوشيال ميديا (Social Media Plan)" },
+  { id: "W1-MED-21", department: "Media Buying", week: 1, title: "إعداد خطة الإعلانات (Media Plan) وإنشاء الحسابات" },
+  { id: "W1-SEO-21", department: "SEO", week: 1, title: "إعداد خطة السيو (SEO Plan)" },
+  { id: "W1-ACC-22", department: "Account Management", week: 1, title: "اعتماد العميل لخطة السوشيال ميديا" },
+  { id: "W1-ACC-23", department: "Account Management", week: 1, title: "اعتماد العميل لخطة الإعلانات" },
+  // ثانياً: الإنتاج الفني (بعد اعتماد خطة السوشيال ميديا)
+  { id: "W2-SOC-21", department: "Social Media", week: 2, title: "التصميم الجرافيكي (تصاميم السوشيال ميديا)" },
+  { id: "W2-SOC-22", department: "Social Media", week: 2, title: "الموشن جرافيك (فيديوهات السوشيال ميديا)" },
+  // ثالثاً: تجهيز المنتجات والمحتوى (بعد إرسال خطة السيو)
+  { id: "W1-SEO-22", department: "SEO", week: 1, title: "رفع المنتجات (50 منتج)" },
+  { id: "W2-SEO-23", department: "SEO", week: 2, title: "كتابة وصف ومحتوى المنتجات" },
+  // رابعاً: الحملات الإعلانية (بعد اعتماد خطة الإعلانات)
+  { id: "W2-MED-21", department: "Media Buying", week: 2, title: "تصميمات الحملات الإعلانية" },
+  { id: "W2-MED-22", department: "Media Buying", week: 2, title: "فيديوهات الحملات الإعلانية" },
+];
+
+/** Full-package tasks the phases above replace in an انشاء contract's first month. */
+const ESTABLISHMENT_REPLACED_TASKS = new Set([
+  "W1-ACC-01", // البريف
+  "W1-SEO-02", // خطة الـ SEO
+  "W2-SEO-01", // تصميم الـ UI
+  "W2-SEO-02", // تطبيق الـ UI
+  "W2-SEO-03", // كتابة محتوى المنتجات
+  "W2-SOC-01", "W2-SOC-02", // بلان تصاميم وفيديوهات السوشيال ميديا
+  "W2-MED-02", "W2-MED-03", // بلان تصاميم وفيديوهات الحملات الإعلانية
+  "W2-ACC-01", "W2-ACC-02", "W2-ACC-03", "W2-ACC-04", // اعتماد العميل للبلانات
+  "W3-SOC-01", "W3-SOC-02", // استلام تصاميم وفيديوهات السوشيال ميديا
+  "W3-MED-01", "W3-MED-02", // استلام تصاميم وفيديوهات الحملات الإعلانية
+]);
+
+/**
+ * Phase tasks that take over a task an انشاء client already had, so a re-sync carries that task's
+ * work (completion, notes, assignee) over instead of reopening it.
+ */
+const ESTABLISHMENT_PREVIOUS_NUMBERS: Record<string, string> = {
+  'W1-ACC-21': 'W1-ACC-01', // البريف
+  'W1-SEO-21': 'W1-SEO-02', // خطة الـ SEO
+  'W2-SEO-21': 'W2-SEO-01', // تصميم الـ UI
+  'W2-SEO-22': 'W2-SEO-02', // تطبيق الـ UI
+  'W2-SEO-23': 'W2-SEO-03', // كتابة محتوى المنتجات
+};
+
+/** True for the انشاء contract, however the hamza was typed. */
+export const isEstablishmentContract = (contract?: string) => normalizeAlef(contract || '').includes('انشاء');
+
+/**
+ * Start and due dates of an انشاء contract's first month, by task number. Day 1 is the day the
+ * brief arrives. Ranges ("1 to 4 working days") use their longest duration.
+ */
+function establishmentFirstMonthDates(day1: string): Record<string, { start: string; due: string }> {
+  const after = (from: string, days: number) => ({ start: from, due: addBusinessDays(from, days) });
+
+  const brief = after(day1, 1);
+  const logo = after(brief.due, 2);          // 1–2 days after the brief
+  const uiux = after(logo.due, 2);           // 1–2 days after the logo
+  const development = after(uiux.due, 2);   // 1–2 days after UI/UX
+  const plan = after(day1, 2);               // the plans: within 1–2 days of the brief
+  const planApproval = after(plan.due, 1);
+  const graphicDesign = after(planApproval.due, 4); // 1–4 days
+  const motion = after(planApproval.due, 6);        // 2–6 days
+  const productUpload = after(plan.due, 3);         // 1–3 days after the SEO plan is sent
+  const productContent = after(productUpload.due, 2);
+  const adDesigns = after(planApproval.due, 2);
+  const adVideos = after(planApproval.due, 5);      // 2–5 days
+
+  // The full-package tasks that follow the phases: client approval 2 days after each delivery,
+  // scheduling 2 days after approval, and the campaigns launch the day after the last approval.
+  const designApproval = after(graphicDesign.due, 2);
+  const videoApproval = after(motion.due, 2);
+  const adDesignApproval = after(adDesigns.due, 2);
+  const adVideoApproval = after(adVideos.due, 2);
+  const lastAdApproval = adVideoApproval.due > adDesignApproval.due ? adVideoApproval.due : adDesignApproval.due;
+
+  return {
+    'W1-ACC-21': brief,
+    'W1-SOC-21': logo,
+    'W2-SEO-21': uiux,
+    'W2-SEO-22': development,
+    'W1-SOC-22': plan,
+    'W1-MED-21': plan,
+    'W1-SEO-21': plan,
+    'W1-ACC-22': planApproval,
+    'W1-ACC-23': planApproval,
+    'W2-SOC-21': graphicDesign,
+    'W2-SOC-22': motion,
+    'W1-SEO-22': productUpload,
+    'W2-SEO-23': productContent,
+    'W2-MED-21': adDesigns,
+    'W2-MED-22': adVideos,
+    'W3-ACC-01': designApproval,   // اعتماد العميل تصاميم السوشيال ميديا
+    'W3-ACC-04': videoApproval,    // اعتماد العميل فيديوهات السوشيال ميديا
+    'W3-ACC-03': adDesignApproval, // اعتماد العميل تصاميم الحملات الإعلانية
+    'W3-ACC-02': adVideoApproval,  // اعتماد العميل فيديوهات الحملات الإعلانية
+    'W4-SOC-01': after(designApproval.due, 2), // جدولة نشر التصاميم
+    'W4-SOC-02': after(videoApproval.due, 2),  // جدولة نشر الفيديوهات
+    'W4-MED-01': after(lastAdApproval, 1),     // إطلاق الحملات الإعلانية
+  };
+}
+
 export const STANDARD_CORE_TASKS: Array<{ taskNumber: string; title: string; category: TaskCategory, week: number, oneTimeOnly?: boolean }> = fullPackageCoreTasks.map(t => ({
   taskNumber: t.id,
   title: t.title,
@@ -299,8 +414,13 @@ export function createDefaultCoreTasks(
       return ['account_management', 'media_buying', 'social_media'];
     }
     
-    // انشاء -> Account + SEO
-    if (c.includes('انشاء') || c.includes('seo')) {
+    // انشاء -> every department (the store, its content, social media and campaigns)
+    if (isEstablishmentContract(c)) {
+      return ['account_management', 'seo', 'media_buying', 'social_media'];
+    }
+
+    // SEO -> Account + SEO
+    if (c.includes('seo')) {
       return ['account_management', 'seo'];
     }
     
@@ -357,7 +477,9 @@ export function createDefaultCoreTasks(
     }
     
     // idIndex: position used in the task id when it differs from the position in this list.
-    let filteredTasks: Array<{ taskNumber: string; title: string; category: TaskCategory; week: number; oneTimeOnly?: boolean; idIndex?: number }> = [];
+    // idKey: the task id's ending when it is not a position (the انشاء phase tasks).
+    let filteredTasks: Array<{ taskNumber: string; title: string; category: TaskCategory; week: number; oneTimeOnly?: boolean; idIndex?: number; idKey?: string }> = [];
+    const isEstablishmentFirstMonth = month === 0 && isEstablishmentContract(contractType);
 
     const isEconomy = contractType === 'الاقتصادية';
     // "سوشيال ميديا" alone is account + social only (see getAllowedCategories). It used to be taken
@@ -407,6 +529,19 @@ export function createDefaultCoreTasks(
         week: t.week,
         oneTimeOnly: t.isOneTime
       }));
+    } else if (isEstablishmentFirstMonth) {
+      // The four phases, plus the full-package tasks they do not replace (ids as in the full package).
+      filteredTasks = [
+        ...establishmentFirstMonthTasks.map((t, i) => ({
+          taskNumber: t.id,
+          title: t.title,
+          category: departmentToCategory[t.department] || 'account_management',
+          week: t.week,
+          oneTimeOnly: true,
+          idKey: `e${i + 1}`,
+        })),
+        ...getFilteredTasksForContract(currentMonthContract).filter(t => !ESTABLISHMENT_REPLACED_TASKS.has(t.taskNumber)),
+      ];
     } else {
       filteredTasks = getFilteredTasksForContract(currentMonthContract);
     }
@@ -415,6 +550,8 @@ export function createDefaultCoreTasks(
     // off, so a month that would start on one of them starts on the following Sunday.
     const monthStartDate = formatDateToYYYYMMDD(toWorkingDay(addMonthsKeepingDay(parseDate(startDate) || new Date(), month)));
     const monthThursdays = getThursdaysOfContractMonth(startDate, month, safeDuration);
+    const establishmentDates: Record<string, { start: string; due: string }> =
+      isEstablishmentFirstMonth ? establishmentFirstMonthDates(monthStartDate) : {};
 
     // Week boundaries calculated with addBusinessDays
     const d1 = 5;
@@ -509,6 +646,12 @@ export function createDefaultCoreTasks(
         }
       }
 
+      const phaseDates = establishmentDates[t.taskNumber];
+      if (phaseDates) {
+        taskStart = phaseDates.start;
+        dueDate = phaseDates.due;
+      }
+
       // Reports go out on Thursdays: the weekly ones on this month's Thursdays in order, the
       // monthly one on its last Thursday.
       if (t.title === 'التقرير الأسبوعي' || t.title === 'التقرير الشهري الشامل') {
@@ -521,7 +664,7 @@ export function createDefaultCoreTasks(
       const titleSuffix = (isMultipleMonths && !isWeeklyReport) ? ` (الشهر ${month + 1})` : '';
       
       allTasks.push({
-        id: `t-${clientId}-m${month}-${(t.idIndex ?? idx) + 1}`,
+        id: `t-${clientId}-m${month}-${t.idKey ?? (t.idIndex ?? idx) + 1}`,
         taskNumber: `${t.taskNumber}-M${month+1}`,
         title: `${t.title}${titleSuffix}`,
         category: t.category,
@@ -604,7 +747,11 @@ export function syncClientTasksWithNewMatrix(client: Client): TaskItem[] {
       (byIdCandidate.title || '').trim() === g.title.trim()
     ) ? byIdCandidate : undefined;
 
-    const matched = [byNumber.get(g.taskNumber), safeIdCandidate, byTitle.get(g.title.trim())]
+    const [, baseNumber, monthSuffix] = g.taskNumber.match(/^(.*?)(-M\d+)$/) || [];
+    const previousNumber = baseNumber && ESTABLISHMENT_PREVIOUS_NUMBERS[baseNumber];
+    const previousTask = previousNumber ? byNumber.get(`${previousNumber}${monthSuffix}`) : undefined;
+
+    const matched = [byNumber.get(g.taskNumber), safeIdCandidate, byTitle.get(g.title.trim()), previousTask]
       .find(c => c && !usedIds.has(c.id));
     if (!matched) return g;
     usedIds.add(matched.id);
