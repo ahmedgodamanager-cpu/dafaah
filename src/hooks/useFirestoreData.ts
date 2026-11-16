@@ -148,8 +148,22 @@ const stableStringify = (value: any): string => {
 
 const sameTask = (a: TaskItem, b: TaskItem) => stableStringify(serializeTask(a)) === stableStringify(serializeTask(b));
 
-/** Automatic SLA: approving a plan moves the matching delivery task's due date. */
+/**
+ * Automatic SLA: finishing a task moves the due date of the task that waits for it (its title starts
+ * with `target`) to that many working days after the completion. One task can start several.
+ */
 const SLA_RULES: Array<{ match: string[]; target: string; days: number }> = [
+  // انشاء contracts, first month (see establishmentFirstMonthTasks)
+  { match: ['استلام ومراجعة بريف العميل'], target: 'تصميم اللوجو والهوية البصرية', days: 2 },
+  { match: ['تصميم اللوجو والهوية البصرية'], target: 'تصميم واجهة وتجربة المستخدم (UI/UX)', days: 2 },
+  { match: ['تصميم واجهة وتجربة المستخدم (UI/UX)'], target: 'أعمال البرمجة والتطوير', days: 2 },
+  { match: ['اعتماد العميل لخطة السوشيال ميديا'], target: 'التصميم الجرافيكي', days: 4 },
+  { match: ['اعتماد العميل لخطة السوشيال ميديا'], target: 'الموشن جرافيك', days: 6 },
+  { match: ['إعداد خطة السيو'], target: 'رفع المنتجات', days: 3 },
+  { match: ['رفع المنتجات'], target: 'كتابة وصف ومحتوى المنتجات', days: 2 },
+  { match: ['اعتماد العميل لخطة الإعلانات'], target: 'تصميمات الحملات الإعلانية', days: 2 },
+  { match: ['اعتماد العميل لخطة الإعلانات'], target: 'فيديوهات الحملات الإعلانية', days: 5 },
+  // Every contract: approving a plan moves the matching delivery task.
   { match: ['اعتماد العميل لبلان تصاميم السوشيال ميديا'], target: 'استلام تصاميم السوشيال ميديا', days: 3 },
   { match: ['اعتماد العميل لبلان تصاميم الحملات الإعلانية', 'اعتماد العميل لبلان تصاميم الحملات'], target: 'استلام تصاميم الحملات الإعلانية', days: 3 },
   { match: ['اعتماد العميل لبلان فيديوهات الحملات الإعلانية', 'اعتماد العميل لبلان فيديوهات الحملات'], target: 'استلام فيديوهات الحملات الإعلانية', days: 5 },
@@ -967,26 +981,27 @@ export const useFirestoreData = () => {
       }
     }
 
-    const rule = SLA_RULES.find(r => r.match.some(m => title.includes(m)));
-    if (!rule) return;
-    const client = storeRef.current.map[clientId];
-    const downstream = client?.tasks.find(t =>
-      !t.completed &&
-      (t.title || '').includes(rule.target) &&
-      // Same contract month as the approved plan (multi-month contracts repeat these tasks).
-      (task.monthIndex === undefined || t.monthIndex === undefined || t.monthIndex === task.monthIndex)
-    );
-    if (!downstream) return;
-
     const completedOn = toLocalDateStr(task.completedAt);
     const compDate = isPlausibleDateStr(completedOn) ? completedOn : getTodayStr();
-    const newDueDate = addBusinessDays(compDate, rule.days);
-    if (downstream.dueDate === newDueDate && downstream.startDate === compDate) return;
 
-    await writeSingleTask(clientId, { ...downstream, dueDate: newDueDate, startDate: compDate }, {
-      action: 'تحديث SLA تلقائي',
-      details: `تم تحديث موعد استحقاق (${downstream.title}) إلى ${newDueDate} بإضافة ${rule.days} أيام عمل بناءً على إنجاز مهمة الاعتماد في ${compDate}`,
-    });
+    for (const rule of SLA_RULES.filter(r => r.match.some(m => title.includes(m)))) {
+      const client = storeRef.current.map[clientId];
+      const downstream = client?.tasks.find(t =>
+        !t.completed &&
+        (t.title || '').trim().startsWith(rule.target) &&
+        // Same contract month as the finished task (multi-month contracts repeat these tasks).
+        (task.monthIndex === undefined || t.monthIndex === undefined || t.monthIndex === task.monthIndex)
+      );
+      if (!downstream) continue;
+
+      const newDueDate = addBusinessDays(compDate, rule.days);
+      if (downstream.dueDate === newDueDate && downstream.startDate === compDate) continue;
+
+      await writeSingleTask(clientId, { ...downstream, dueDate: newDueDate, startDate: compDate }, {
+        action: 'تحديث SLA تلقائي',
+        details: `تم تحديث موعد استحقاق (${downstream.title}) إلى ${newDueDate} بإضافة ${rule.days} أيام عمل بناءً على إنجاز مهمة (${title}) في ${compDate}`,
+      });
+    }
   }, [commitOps, activityOp, writeSingleTask]);
 
   // ───────────────────────────── public API ─────────────────────────────
